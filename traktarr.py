@@ -77,7 +77,9 @@ def app(config, cachefile, logfile):
 # Trakt OAuth
 ############################################################
 
-@app.command(help='Authenticate Traktarr.')
+# Name is set explicitly: click 7+ would otherwise expose this as
+# 'trakt-authentication', breaking the documented command
+@app.command('trakt_authentication', help='Authenticate Traktarr.')
 def trakt_authentication():
     from media.trakt import Trakt
     trakt = Trakt(cfg)
