@@ -2,8 +2,6 @@ import json
 import os
 import sys
 
-from attrdict import AttrDict
-
 
 class Singleton(type):
     _instances = {}
@@ -15,21 +13,44 @@ class Singleton(type):
         return cls._instances[cls]
 
 
-class AttrConfig(AttrDict):
+class AttrConfig(dict):
     """
-    Simple AttrDict subclass to return None when requested attribute does not exist
+    Simple dict subclass exposing keys as attributes, returning None when the
+    requested attribute does not exist.
+
+    This replaces the abandoned 'attrdict' package, which fails to import on
+    Python 3.10+ because it uses 'collections.Mapping' instead of
+    'collections.abc.Mapping'.
     """
 
     def __init__(self, config):
         super().__init__(config)
+        # Wrap nested containers so attribute access works at any depth
+        for key, value in list(self.items()):
+            super().__setitem__(key, self._wrap(value))
+
+    @classmethod
+    def _wrap(cls, value):
+        if isinstance(value, dict):
+            return cls(value)
+        elif isinstance(value, list):
+            # Kept as a list (not a tuple) so config lists stay mutable
+            return [cls._wrap(item) for item in value]
+        return value
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, self._wrap(value))
 
     def __getattr__(self, item):
-        try:
-            return super().__getattr__(item)
-        except AttributeError:
-            pass
+        # Let dunder lookups fail normally, otherwise copy/pickle protocols
+        # would receive None instead of raising AttributeError
+        if item.startswith('__') and item.endswith('__'):
+            raise AttributeError(item)
         # Default behaviour
-        return None
+        return self.get(item)
+
+    def __setattr__(self, key, value):
+        self[key] = value
 
 
 class Config(object, metaclass=Singleton):
