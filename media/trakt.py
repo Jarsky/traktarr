@@ -133,6 +133,7 @@ class Trakt:
         try:
             resp_data = ''
             max_attempts = 6
+            request_failed = False
             while True:
                 attempts = 0
                 retrieve_error = False
@@ -194,9 +195,11 @@ class Trakt:
                                         processed.append(item)
 
                     elif resp_data == '[]':
-                        log.warning("Received empty JSON response for page: %d of %d", current_page, total_pages)
+                        # A Trakt list with no items is a valid response, not an error
+                        log.debug("Received empty JSON response for page: %d of %d", current_page, total_pages)
                     else:
                         log.warning("Received malformed JSON response for page: %d of %d", current_page, total_pages)
+                        request_failed = True
 
                     # check if we have fetched the last page, break if so
                     if total_pages == 0:
@@ -215,10 +218,18 @@ class Trakt:
                     exit()
                 else:
                     log.error("Failed to retrieve %s %s, request response: %d", type_name, object_name, req.status_code)
+                    request_failed = True
                     break
 
             if len(processed):
                 log.debug("Found %d %s %s", len(processed), type_name, object_name)
+                return processed
+
+            # An empty result is only a failure if the request itself failed.
+            # Returning None for a list that is genuinely empty would trip this
+            # method's backoff predicate and retry a valid response six times.
+            if not request_failed:
+                log.debug("Found no %s %s", type_name, object_name)
                 return processed
 
             return None

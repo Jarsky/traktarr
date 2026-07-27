@@ -302,7 +302,10 @@ def show(
     help='Sort list to process.',
     show_default=True)
 @click.option(
-    '--year', '--years', '-y',
+    # Parameter name is pinned: click 6 derived it from the last long option
+    # ('years'), click 7+ uses the first ('year'), which no longer matched the
+    # callback signature.
+    '--year', '--years', '-y', 'years',
     default=None,
     help='Can be a specific year or a range of years to search. For example, \'2000\' or \'2000-2010\'.')
 @click.option(
@@ -549,12 +552,16 @@ def shows(
     else:
         trakt_objects_list = trakt.get_user_list_shows(list_type, authenticate_user)
 
-    if not trakt_objects_list:
+    if trakt_objects_list is None:
         log.error("Aborting due to failure to retrieve Trakt \'%s\' shows list.", list_type.capitalize())
         if notifications:
             callback_notify(
                 {'event': 'abort', 'type': 'shows', 'list_type': list_type,
                  'reason': 'Failure to retrieve Trakt \'%s\' shows list.' % list_type.capitalize()})
+        return None
+    elif not len(trakt_objects_list):
+        # An empty list is not a failure, so it is not worth an abort notification
+        log.info("Skipped Trakt \'%s\' shows list, no shows in it.", list_type.capitalize())
         return None
     else:
         log.info("Retrieved Trakt \'%s\' shows list, shows found: %d", list_type.capitalize(), len(trakt_objects_list))
@@ -843,7 +850,10 @@ def movie(
     type=int,
     help='Set a minimum Rotten Tomatoes score.')
 @click.option(
-    '--year', '--years', '-y',
+    # Parameter name is pinned: click 6 derived it from the last long option
+    # ('years'), click 7+ uses the first ('year'), which no longer matched the
+    # callback signature.
+    '--year', '--years', '-y', 'years',
     default=None,
     help='Can be a specific year or a range of years to search. For example, \'2000\' or \'2000-2010\'.')
 @click.option(
@@ -1109,12 +1119,16 @@ def movies(
     else:
         trakt_objects_list = trakt.get_user_list_movies(list_type, authenticate_user)
 
-    if not trakt_objects_list:
+    if trakt_objects_list is None:
         log.error("Aborting due to failure to retrieve Trakt \'%s\' movies list.", list_type.capitalize())
         if notifications:
             callback_notify(
                 {'event': 'abort', 'type': 'movies', 'list_type': list_type,
                  'reason': 'Failure to retrieve Trakt \'%s\' movies list.' % list_type.capitalize()})
+        return None
+    elif not len(trakt_objects_list):
+        # An empty list is not a failure, so it is not worth an abort notification
+        log.info("Skipped Trakt \'%s\' movies list, no movies in it.", list_type.capitalize())
         return None
     else:
         log.info("Retrieved Trakt \'%s\' movies list, movies found: %d", list_type.capitalize(),
