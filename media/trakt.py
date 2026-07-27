@@ -3,8 +3,8 @@ import time
 
 import backoff
 import requests
-from cashier import cache
 
+from misc.cache import cache
 from helpers.misc import backoff_handler, dict_merge
 from helpers.trakt import extract_list_user_and_key_from_url
 from misc.log import logger
@@ -259,10 +259,8 @@ class Trakt:
 
         payload = {'client_id': self.cfg.trakt.client_id}
 
-        print(self._headers_without_authentication())
-
         # Request device code
-        req = requests.post('https://api.trakt.tv/oauth/device/code', params=payload,
+        req = requests.post('https://api.trakt.tv/oauth/device/code', json=payload,
                             headers=self._headers_without_authentication())
         device_code_response = req.json()
 
@@ -326,7 +324,7 @@ class Trakt:
                        'client_secret': self.cfg.trakt.client_secret, 'grant_type': 'authorization_code'}
 
             # Poll Trakt for access token
-            req = requests.post('https://api.trakt.tv/oauth/device/token', params=payload,
+            req = requests.post('https://api.trakt.tv/oauth/device/token', json=payload,
                                 headers=self._headers_without_authentication())
 
             success, status_code = self.__oauth_process_token_request(req)
@@ -344,7 +342,7 @@ class Trakt:
         payload = {'refresh_token': refresh_token, 'client_id': self.cfg.trakt.client_id,
                    'client_secret': self.cfg.trakt.client_secret, 'grant_type': 'refresh_token'}
 
-        req = requests.post('https://api.trakt.tv/oauth/token', params=payload,
+        req = requests.post('https://api.trakt.tv/oauth/token', json=payload,
                             headers=self._headers_without_authentication())
 
         success, status_code = self.__oauth_process_token_request(req)
@@ -390,7 +388,16 @@ class Trakt:
                      user)
 
             if self.__oauth_refresh_access_token(token_information["refresh_token"]):
-                log.info("The access token for the user %s has been refreshed. Please restart the application.", user)
+                # Pick the refreshed token up straight away: saving it replaces the
+                # config singleton's dict, so our own reference would otherwise keep
+                # handing out the expired token for the rest of this run.
+                from misc.config import Config
+                self.cfg = Config().cfg
+
+                log.info("The access token for the user %s has been refreshed.", user)
+            else:
+                log.error("The access token for the user %s could not be refreshed. "
+                          "Please re-authenticate with 'traktarr trakt_authentication'.", user)
 
     def _user_used_for_authentication(self, user=None):
         if user is None:
