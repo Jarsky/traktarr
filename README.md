@@ -128,22 +128,30 @@ Installs Traktarr to the system so that it can be ran with the `traktarr` comman
    cd /opt/traktarr
    ```
 
-1. Install Python and PIP.
+1. Install Python and the venv module.
 
    ```
-   sudo apt-get install python3 python3-pip
+   sudo apt-get install python3 python3-pip python3-venv
    ```
 
-1. Install the required python modules.
+1. Create a virtualenv and install the required python modules into it.
+
+   Installing into a virtualenv rather than system-wide keeps Traktarr's
+   dependencies from clashing with packages your distro manages.
 
    ```
-   sudo python3 -m pip install -r requirements.txt
+   python3 -m venv /opt/traktarr/venv
+   /opt/traktarr/venv/bin/pip install -r requirements.txt
    ```
 
-1. Create a shortcut for `traktarr`.
+1. Create a shortcut for `traktarr` that runs it from the virtualenv.
 
    ```
-   sudo ln -s /opt/traktarr/traktarr.py /usr/local/bin/traktarr
+   sudo tee /usr/local/bin/traktarr >/dev/null <<'EOF'
+   #!/bin/sh
+   exec /opt/traktarr/venv/bin/python3 /opt/traktarr/traktarr.py "$@"
+   EOF
+   sudo chmod 755 /usr/local/bin/traktarr
    ```
 
 1. Generate a basic `config.json` file.
