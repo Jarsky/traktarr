@@ -1,10 +1,6 @@
-import os.path
-
 import backoff
-import requests
-from helpers.misc import backoff_handler, dict_merge
 
-from helpers import str as misc_str
+from helpers.misc import backoff_handler, dict_merge
 from media.pvr import PVR
 from misc.log import logger
 
@@ -14,32 +10,6 @@ log = logger.get_logger(__name__)
 class Sonarr(PVR):
     def get_objects(self):
         return self._get_objects('api/v3/series')
-
-    @backoff.on_predicate(backoff.expo, lambda x: x is None, max_tries=4, on_backoff=backoff_handler)
-    def get_tags(self):
-        tags = {}
-        try:
-            # make request
-            req = requests.get(
-                os.path.join(misc_str.ensure_endswith(self.server_url, "/"), 'api/v3/tag'),
-                headers=self.headers,
-                timeout=60,
-                allow_redirects=False
-            )
-            log.debug("Request URL: %s", req.url)
-            log.debug("Request Response: %d", req.status_code)
-
-            if req.status_code == 200:
-                resp_json = req.json()
-                log.debug("Found Sonarr Tags: %d", len(resp_json))
-                for tag in resp_json:
-                    tags[tag['label']] = tag['id']
-                return tags
-            else:
-                log.error("Failed to retrieve all tags, request response: %d", req.status_code)
-        except Exception:
-            log.exception("Exception retrieving tags: ")
-        return None
 
     @backoff.on_predicate(backoff.expo, lambda x: x is None, max_tries=4, on_backoff=backoff_handler)
     def add_series(self, series_tvdb_id, series_title, series_title_slug, quality_profile_id, language_profile_id,

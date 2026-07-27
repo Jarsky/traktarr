@@ -3,36 +3,6 @@ from misc.log import logger
 log = logger.get_logger(__name__)
 
 
-def series_tag_ids_list_builder(profile_tags, config_tags):
-    try:
-        tag_ids = []
-        for tag_name in config_tags:
-            if tag_name.lower() in profile_tags:
-                log.debug("Validated Tag: %s", tag_name)
-                tag_ids.append(profile_tags[tag_name.lower()])
-        if tag_ids:
-            return tag_ids
-    except Exception:
-        log.exception("Exception building Tags IDs list")
-    return None
-
-
-def series_tag_names_list_builder(profile_tag_ids, chosen_tag_ids):
-    try:
-        if not chosen_tag_ids:
-            return None
-
-        tags = []
-        for tag_name, tag_id in profile_tag_ids.items():
-            if tag_id in chosen_tag_ids:
-                tags.append(tag_name)
-        if tags:
-            return tags
-    except Exception:
-        log.exception("Exception building Tag Names list from Tag IDs %s: ", chosen_tag_ids)
-    return None
-
-
 def filter_trakt_series_list(trakt_series, callback):
     new_series_list = []
     try:

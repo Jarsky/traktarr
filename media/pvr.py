@@ -104,6 +104,32 @@ class PVR(ABC):
             log.exception("Exception retrieving ID of quality profile %s: ", profile_name)
         return None
 
+    @backoff.on_predicate(backoff.expo, lambda x: x is None, max_tries=4, on_backoff=backoff_handler)
+    def get_tags(self):
+        tags = {}
+        try:
+            # make request
+            req = requests.get(
+                os.path.join(misc_str.ensure_endswith(self.server_url, "/"), 'api/v3/tag'),
+                headers=self.headers,
+                timeout=60,
+                allow_redirects=False
+            )
+            log.debug("Request URL: %s", req.url)
+            log.debug("Request Response: %d", req.status_code)
+
+            if req.status_code == 200:
+                resp_json = req.json()
+                log.debug("Found Tags: %d", len(resp_json))
+                for tag in resp_json:
+                    tags[tag['label']] = tag['id']
+                return tags
+            else:
+                log.error("Failed to retrieve all tags, request response: %d", req.status_code)
+        except Exception:
+            log.exception("Exception retrieving tags: ")
+        return None
+
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=4, on_backoff=backoff_handler)
     def get_language_profile_id(self, language_name):
         try:

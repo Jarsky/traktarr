@@ -16,7 +16,7 @@ class Radarr(PVR):
 
     @backoff.on_predicate(backoff.expo, lambda x: x is None, max_tries=4, on_backoff=backoff_handler)
     def add_movie(self, movie_tmdb_id, movie_title, movie_year, movie_title_slug, quality_profile_id, root_folder,
-                  min_availability_temp, search_missing=False):
+                  min_availability_temp, tag_ids=None, search_missing=False):
         payload = self._prepare_add_object_payload(movie_title, movie_title_slug, quality_profile_id, root_folder)
 
         # replace radarr minimum_availability if supplied
@@ -30,6 +30,7 @@ class Radarr(PVR):
         payload = dict_merge(payload, {
             'tmdbId': movie_tmdb_id,
             'year': int(movie_year),
+            'tags': [] if not tag_ids or not isinstance(tag_ids, list) else tag_ids,
             'minimumAvailability': minimum_availability,
             'addOptions': {
                 'searchForMovie': search_missing

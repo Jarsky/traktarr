@@ -130,12 +130,12 @@ def get_language_profile_id(pvr, language_profile):
     return language_profile_id
 
 
-def get_profile_tags(pvr):
+def get_profile_tags(pvr, pvr_type='Sonarr'):
     profile_tags = pvr.get_tags()
     if profile_tags is None:
         log.error("Aborting due to failure to retrieve Tag IDs")
         exit()
-    log.info("Retrieved Sonarr Tag IDs: %d", len(profile_tags))
+    log.info("Retrieved %s Tag IDs: %d", pvr_type, len(profile_tags))
     return profile_tags
 
 
@@ -186,7 +186,7 @@ def show(
 
     from media.sonarr import Sonarr
     from media.trakt import Trakt
-    from helpers import sonarr as sonarr_helper
+    from helpers import misc as misc_helper
     from helpers import str as misc_str
 
     # replace sonarr root_folder if folder is supplied
@@ -231,14 +231,14 @@ def show(
     tag_names = None
 
     if cfg.sonarr.tags is not None:
-        profile_tags = get_profile_tags(sonarr)
+        profile_tags = get_profile_tags(sonarr, 'Sonarr')
         if profile_tags is not None:
             # determine which tags to use when adding this series
-            tag_ids = sonarr_helper.series_tag_ids_list_builder(
+            tag_ids = misc_helper.tag_ids_list_builder(
                 profile_tags,
                 cfg.sonarr.tags,
             )
-            tag_names = sonarr_helper.series_tag_names_list_builder(
+            tag_names = misc_helper.tag_names_list_builder(
                 profile_tags,
                 tag_ids,
             )
@@ -455,14 +455,14 @@ def shows(
     tag_names = None
 
     if cfg.sonarr.tags is not None:
-        profile_tags = get_profile_tags(sonarr)
+        profile_tags = get_profile_tags(sonarr, 'Sonarr')
         if profile_tags is not None:
             # determine which tags to use when adding this series
-            tag_ids = sonarr_helper.series_tag_ids_list_builder(
+            tag_ids = misc_helper.tag_ids_list_builder(
                 profile_tags,
                 cfg.sonarr.tags,
             )
-            tag_names = sonarr_helper.series_tag_names_list_builder(
+            tag_names = misc_helper.tag_names_list_builder(
                 profile_tags,
                 tag_ids,
             )
@@ -734,6 +734,7 @@ def movie(
 
     from media.radarr import Radarr
     from media.trakt import Trakt
+    from helpers import misc as misc_helper
 
     # replace radarr root_folder if folder is supplied
     if folder:
@@ -760,6 +761,24 @@ def movie(
     # quality profile id
     quality_profile_id = get_quality_profile_id(radarr, cfg.radarr.quality)
 
+    # profile tags
+    profile_tags = None
+    tag_ids = None
+    tag_names = None
+
+    if cfg.radarr.tags is not None:
+        profile_tags = get_profile_tags(radarr, 'Radarr')
+        if profile_tags is not None:
+            # determine which tags to use when adding this movie
+            tag_ids = misc_helper.tag_ids_list_builder(
+                profile_tags,
+                cfg.radarr.tags,
+            )
+            tag_names = misc_helper.tag_names_list_builder(
+                profile_tags,
+                tag_ids,
+            )
+
     # get trakt movie
     trakt_movie = trakt.get_movie(movie_id)
 
@@ -781,10 +800,16 @@ def movie(
             quality_profile_id,
             cfg.radarr.root_folder,
             cfg.radarr.minimum_availability,
+            tag_ids,
             not no_search,
     ):
 
-        log.info("ADDED \'%s (%s)\'", trakt_movie['title'], movie_year)
+        if profile_tags is not None and tag_names is not None:
+            log.info("ADDED \'%s (%s)\' with Radarr Tags: %s", trakt_movie['title'], movie_year, tag_names)
+        else:
+            log.info("ADDED \'%s (%s)\'", trakt_movie['title'], movie_year)
+    elif profile_tags is not None:
+        log.error("FAILED ADDING \'%s (%s)\' with Radarr Tags: %s", trakt_movie['title'], movie_year, tag_names)
     else:
         log.error("FAILED ADDING \'%s (%s)\'", trakt_movie['title'], movie_year)
 
@@ -979,6 +1004,24 @@ def movies(
 
     # quality profile id
     quality_profile_id = get_quality_profile_id(radarr, cfg.radarr.quality)
+
+    # profile tags
+    profile_tags = None
+    tag_ids = None
+    tag_names = None
+
+    if cfg.radarr.tags is not None:
+        profile_tags = get_profile_tags(radarr, 'Radarr')
+        if profile_tags is not None:
+            # determine which tags to use when adding these movies
+            tag_ids = misc_helper.tag_ids_list_builder(
+                profile_tags,
+                cfg.radarr.tags,
+            )
+            tag_names = misc_helper.tag_names_list_builder(
+                profile_tags,
+                tag_ids,
+            )
 
     pvr_objects_list = get_objects(radarr, 'Radarr', notifications)
     pvr_exclusions_list = get_exclusions(radarr, 'Radarr')
@@ -1188,15 +1231,23 @@ def movies(
                             quality_profile_id,
                             cfg.radarr.root_folder,
                             cfg.radarr.minimum_availability,
+                            tag_ids,
                             not no_search,
                     ):
 
-                        log.info("ADDED: \'%s (%s)\'", movie_title, movie_year)
+                        if profile_tags is not None and tag_names is not None:
+                            log.info("ADDED: \'%s (%s)\' with Radarr Tags: %s", movie_title, movie_year, tag_names)
+                        else:
+                            log.info("ADDED: \'%s (%s)\'", movie_title, movie_year)
                         if notifications:
                             callback_notify({'event': 'add_movie', 'list_type': list_type, 'movie': sorted_movie['movie']})
                         added_movies += 1
                     else:
-                        log.error("FAILED ADDING: \'%s (%s)\'", movie_title, movie_year)
+                        if profile_tags is not None:
+                            log.error("FAILED ADDING: \'%s (%s)\' with Radarr Tags: %s", movie_title, movie_year,
+                                      tag_names)
+                        else:
+                            log.error("FAILED ADDING: \'%s (%s)\'", movie_title, movie_year)
                         continue
             else:
                 log.info("SKIPPED: \'%s (%s)\'", movie_title, movie_year)

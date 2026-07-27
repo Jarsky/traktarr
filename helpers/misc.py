@@ -47,6 +47,36 @@ def dict_merge(dct, merge_dct):
     return dct
 
 
+def tag_ids_list_builder(profile_tags, config_tags):
+    try:
+        tag_ids = []
+        for tag_name in config_tags:
+            if tag_name.lower() in profile_tags:
+                log.debug("Validated Tag: %s", tag_name)
+                tag_ids.append(profile_tags[tag_name.lower()])
+        if tag_ids:
+            return tag_ids
+    except Exception:
+        log.exception("Exception building Tags IDs list")
+    return None
+
+
+def tag_names_list_builder(profile_tag_ids, chosen_tag_ids):
+    try:
+        if not chosen_tag_ids:
+            return None
+
+        tags = []
+        for tag_name, tag_id in profile_tag_ids.items():
+            if tag_id in chosen_tag_ids:
+                tags.append(tag_name)
+        if tags:
+            return tags
+    except Exception:
+        log.exception("Exception building Tag Names list from Tag IDs %s: ", chosen_tag_ids)
+    return None
+
+
 def unblacklist_genres(genres, blacklisted_genres):
     for allow_genre in genres:
         if allow_genre in blacklisted_genres:

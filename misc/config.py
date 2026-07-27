@@ -109,6 +109,7 @@ class Config(object, metaclass=Singleton):
             'minimum_availability': 'released',
             'quality': 'HD-1080p',
             'root_folder': '/movies/',
+            'tags': [],
             'url': 'http://localhost:7878/'
         },
         'sonarr': {
