@@ -1,3 +1,4 @@
+import collections.abc
 from copy import copy
 
 from misc.log import logger
@@ -38,9 +39,7 @@ def backoff_handler(details):
 
 def dict_merge(dct, merge_dct):
     for k, v in merge_dct.items():
-        import collections
-
-        if k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], collections.Mapping):
+        if k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], collections.abc.Mapping):
             dict_merge(dct[k], merge_dct[k])
         else:
             dct[k] = merge_dct[k]
