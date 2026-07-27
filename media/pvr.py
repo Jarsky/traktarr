@@ -1,6 +1,6 @@
 import os.path
+import re
 from abc import ABC, abstractmethod
-from distutils.version import LooseVersion as Version
 
 import backoff
 import requests
@@ -11,6 +11,16 @@ from helpers import misc
 from misc.log import logger
 
 log = logger.get_logger(__name__)
+
+
+def version_tuple(version):
+    """
+    Turn a version string such as '3.0.6.1196' into a comparable tuple.
+
+    Replaces distutils.LooseVersion, which is deprecated and removed in
+    Python 3.12.
+    """
+    return tuple(int(part) for part in re.findall(r'\d+', version))
 
 
 class PVR(ABC):
@@ -109,7 +119,7 @@ class PVR(ABC):
 
             if ver_req.status_code == 200:
                 ver_resp_json = ver_req.json()
-                if not Version(ver_resp_json['version']) > Version('3'):
+                if not version_tuple(ver_resp_json['version']) > (3,):
                     log.debug("Skipping Language Profile lookup because Sonarr version is \'%s\'.",
                               ver_resp_json['version'])
                     return None
