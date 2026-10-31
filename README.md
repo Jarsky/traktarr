@@ -48,7 +48,7 @@ every request with `403 Forbidden`. If traktarr logs `Aborting due to failure to
 
    | Field | Value |
    |---|---|
-   | Name | anything, e.g. `traktarr-mediabox` |
+   | Name | anything, e.g. `traktarr` |
    | Redirect URI | `http://localhost/callback`. Development apps only allow localhost, and traktarr never uses it |
    | Allowed origins | leave empty. They only matter for apps running in a web browser |
    | Permissions (check-in, scrobble) | leave unticked |
@@ -69,44 +69,64 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "trakt-api-version: 2" -H "trakt-api
 
 ## Install with Docker Compose
 
-The source lives next to the compose file, so an update is one `docker compose up -d --build`:
+Keep the source next to the compose file, so an update is one `docker compose up -d --build`:
 
 ```
-/opt/appdata/traktarr/
+/opt/traktarr/
 ├── docker-compose.yml
 ├── config/          config.json, cache.db, traktarr.log
 └── src/             this repository
 ```
 
+`/opt/traktarr/docker-compose.yml`:
+
 ```yaml
 services:
   traktarr:
-    build:
-      context: ./src
-      dockerfile: Dockerfile.mediabox
+    build: ./src
     image: traktarr:local
     container_name: traktarr
     command: ["run"]                     # every automatic.*.interval hours; restarts don't add an extra run
     environment:
-      - TZ=Pacific/Auckland
+      - TZ=Etc/UTC                       # your time zone, e.g. Europe/London: log times and "this year" follow it
       - TRAKTARR_COLOR=1                 # colour in docker logs
-    networks:
-      - mediabox                         # the network Radarr and Sonarr are on
     volumes:
       - ./config:/config
     restart: unless-stopped
-networks:
-  mediabox:
-    external: true
 ```
 
 ```bash
-git clone https://github.com/Jarsky/traktarr.git /opt/appdata/traktarr/src
-cd /opt/appdata/traktarr
+sudo mkdir -p /opt/traktarr && sudo chown "$USER" /opt/traktarr
+git clone https://github.com/Jarsky/traktarr.git /opt/traktarr/src
+cd /opt/traktarr                       # create docker-compose.yml here (above)
 docker compose up -d --build && docker logs -f traktarr
 ```
 
-On first start without a config, traktarr writes a default `config/config.json` and exits. Fill it in and start it again.
+On first start, traktarr writes a default `config/config.json` and exits. [Fill it in](#configure), then
+`docker compose up -d` again.
+
+### Reaching Radarr and Sonarr
+
+traktarr talks to Radarr and Sonarr over their APIs. Either:
+
+- **Use their address** in `radarr.url` / `sonarr.url`, e.g. `http://192.168.1.10:7878/`. Works wherever they run, with
+  the compose file above as it is.
+- **Or join their Docker network** and use their container names (`http://radarr:7878/`). Find the network with
+  `docker inspect radarr --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`, then add to the
+  compose file:
+
+  ```yaml
+  services:
+    traktarr:
+      # …as above, plus:
+      networks: [media]
+  networks:
+    media:
+      name: YOUR_NETWORK_NAME
+      external: true
+  ```
+
+`localhost` doesn't work from inside the container: it means the container itself.
 
 `run` waits one interval before its first check, so restarting the container (updates, reboots) never adds an extra batch.
 `["run", "--run-now"]` checks the lists immediately on every start instead. To check once now without changing that, use
@@ -114,30 +134,33 @@ the one-off commands under [Commands](#commands).
 
 ## Configure
 
-The parts of `config.json` that matter most (the full file has more filters):
+The parts of `config.json` you need to fill in (the [filters](#filter-examples) come with sensible defaults):
 
 ```jsonc
 {
   "trakt":  { "client_id": "YOUR_CLIENT_ID", "client_secret": "" },
-  "omdb":   { "api_key": "YOUR_OMDB_KEY" },          // only needed for the Rotten Tomatoes filter
+  "omdb":   { "api_key": "YOUR_OMDB_KEY" },          // free key from omdbapi.com; only for the Rotten Tomatoes filter
   "radarr": {
-    "url": "http://radarr:7878/",
-    "api_key": "…",
-    "quality": "1080pToUltraHD",                     // quality profile name (case doesn't matter)
-    "root_folder": "/data/movies",                   // as Radarr sees it, not as traktarr does
+    "url": "http://192.168.1.10:7878/",              // see "Reaching Radarr and Sonarr"
+    "api_key": "…",                                  // Radarr → Settings → General
+    "quality": "HD-1080p",                           // one of your quality profiles (case doesn't matter)
+    "root_folder": "/movies",                        // a root folder as Radarr shows it, not as traktarr sees it
     "minimum_availability": "released",
     "tags": ["traktarr"]                             // tag everything it adds (create the tag in Radarr first)
   },
   "sonarr": {
-    "url": "http://sonarr:8989/",
+    "url": "http://192.168.1.10:8989/",
     "api_key": "…",
-    "quality": "1080pToUltraHD",
-    "language": "Deprecated",                        // Sonarr v4+ has no language profiles; its API returns this one
-    "root_folder": "/data/tv_shows",
+    "quality": "HD-1080p",
+    "language": "Deprecated",                        // Sonarr v4+: keep "Deprecated". Sonarr v3: a language profile name
+    "root_folder": "/tv",
     "tags": ["traktarr"]
   }
 }
 ```
+
+The quality profile, root folder and tag must already exist in Radarr/Sonarr, otherwise adding fails; check
+`docker logs traktarr` on the first run.
 
 Changes to `config.json` take effect when the container restarts: `docker restart traktarr`.
 
@@ -284,7 +307,7 @@ Every filter lives under `filters.movies` or `filters.shows`. A title must pass 
 | `anticipated_min_lists` | ✓ | ✓ | anticipated list only: minimum number of Trakt lists the title is on | `5000` |
 | `blacklisted_tmdb_ids` | ✓ | | never add these TMDb IDs | `[12345]` |
 | `blacklisted_tvdb_ids` | | ✓ | never add these TVDB IDs | `[67890]` |
-| `disabled_for` | ✓ | ✓ | lists that skip all the filters above: `"popular"`, `"watchlist:USER"`, `"list:URL"` | `["watchlist:jarsky"]` |
+| `disabled_for` | ✓ | ✓ | lists that skip all the filters above: `"popular"`, `"watchlist:USER"`, `"list:URL"` | `["watchlist:USER"]` |
 
 Dates take `"YYYY-MM-DD"`, `"today"`, or a distance from today with `d`, `w`, `mo` or `y`: `"-90d"`, `"-2w"`, `"-3mo"`,
 `"+1y"`. Years take a year or `"{year}"` with an optional `+N` / `-N`.
@@ -325,7 +348,7 @@ Set `TZ` there too, so log times and "this year" follow your time zone.
 ## Updating
 
 ```bash
-cd /opt/appdata/traktarr/src && git pull
+cd /opt/traktarr/src && git pull
 cd .. && docker compose up -d --build
 ```
 
@@ -333,7 +356,9 @@ cd .. && docker compose up -d --build
 
 Changes stay in this fork; nothing is sent upstream. On top of notlimahrelyt's Python 3.10+ port:
 
-- **Python 3.12 image** (`Dockerfile.mediabox`); `docker/Dockerfile` is still pinned to Python 3.7.
+- **Python 3.12 image** (`Dockerfile`), replacing the old Python 3.7 one and its Docker Hub hooks.
+- **Defaults that work today:** the generated config uses this year to next year (not 2000–2019), adds at most one
+  title a day per list, includes the new filters, and uses Sonarr v4+'s `"Deprecated"` language.
 - **Anticipated list works with a Rotten Tomatoes minimum.** Unreleased movies have no score, so before this nothing from
   that list was ever added; now the check is skipped while a movie is unreleased.
 - **Anticipated titles ranked by Trakt list count**, with an `anticipated_min_lists` minimum.

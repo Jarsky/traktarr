@@ -62,18 +62,19 @@ class Config(object, metaclass=Singleton):
             'verbose': True
         },
         'automatic': {
+            # per-run limits for each list: at most a few titles a day
             'movies': {
-                'interval': 20,
-                'anticipated': 3,
-                'trending': 3,
-                'popular': 3,
-                'boxoffice': 10
+                'interval': 24,
+                'anticipated': 1,
+                'trending': 0,
+                'popular': 1,
+                'boxoffice': 1
             },
             'shows': {
-                'interval': 48,
-                'anticipated': 10,
-                'trending': 1,
-                'popular': 1
+                'interval': 24,
+                'anticipated': 1,
+                'trending': 0,
+                'popular': 0
             }
         },
         'filters': {
@@ -85,10 +86,14 @@ class Config(object, metaclass=Singleton):
                 'blacklisted_networks': [],
                 'blacklisted_min_runtime': 15,
                 'blacklisted_max_runtime': 0,
-                'blacklisted_min_year': 2000,
-                'blacklisted_max_year': 2019,
+                'blacklisted_min_year': '{year}',
+                'blacklisted_max_year': '{year}+1',
                 'blacklisted_title_keywords': [],
                 'blacklisted_tvdb_ids': [],
+                'allowed_genres': [],
+                'released_after': '',
+                'released_before': '',
+                'anticipated_min_lists': 2500,
             },
             'movies': {
                 'disabled_for': [],
@@ -97,11 +102,15 @@ class Config(object, metaclass=Singleton):
                 'blacklisted_genres': [],
                 'blacklisted_min_runtime': 60,
                 'blacklisted_max_runtime': 0,
-                'blacklisted_min_year': 2000,
-                'blacklisted_max_year': 2019,
+                'blacklisted_min_year': '{year}',
+                'blacklisted_max_year': '{year}+1',
                 'blacklisted_title_keywords': [],
                 'blacklisted_tmdb_ids': [],
-                'rotten_tomatoes': ""
+                'rotten_tomatoes': "",
+                'allowed_genres': [],
+                'released_after': '',
+                'released_before': '',
+                'anticipated_min_lists': 5000
             }
         },
         'radarr': {
@@ -114,7 +123,7 @@ class Config(object, metaclass=Singleton):
         },
         'sonarr': {
             'api_key': '',
-            'language': 'English',
+            'language': 'Deprecated',     # Sonarr v4+ has no language profiles; v3 needs a profile name
             'quality': 'HD-1080p',
             'root_folder': '/tv/',
             'season_folder': True,
