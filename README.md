@@ -69,6 +69,9 @@ services:
     image: traktarr:local
     container_name: traktarr
     command: ["run", "--run-now"]        # check the lists now, then every automatic.*.interval hours
+    environment:
+      - TZ=Pacific/Auckland
+      - TRAKTARR_COLOR=1                 # colour in docker logs
     networks:
       - mediabox                         # the network Radarr and Sonarr are on
     volumes:
@@ -139,10 +142,13 @@ The original defaults (20 anticipated + 5 popular + 3 box office + 2 trending) a
     "allowed_genres": ["action", "adventure", "comedy", "fantasy", "horror", "science-fiction", "superhero"],
     "blacklisted_genres": ["anime", "children", "documentary", "music", "musical", "reality", "short", "sports",
                            "holiday", "history", "special-interest"],
-    "blacklisted_min_year": 0,          // this year…
-    "blacklisted_max_year": "+1",       // …to next year, so it never needs updating
+    "blacklisted_min_year": "{year}",   // this year…
+    "blacklisted_max_year": "{year}+1", // …to next year, so it never needs updating
+    "released_after": "-6mo",           // released in the last 6 months…
+    "released_before": "+18mo",         // …or coming in the next 18 months
     "blacklisted_min_runtime": 80,
-    "rotten_tomatoes": "75"             // popular/box office/trending; skipped for anticipated (no score before release)
+    "rotten_tomatoes": "75",            // released movies need this score, from any list; unreleased ones are exempt
+    "anticipated_min_lists": 5000       // anticipated list: only titles on at least this many Trakt lists
   }
 }
 ```
@@ -158,9 +164,10 @@ The original defaults (20 anticipated + 5 popular + 3 box office + 2 trending) a
     "blacklisted_genres": ["animation", "anime", "children", "documentary", "game-show", "home-and-garden", "news",
                            "reality", "soap", "special-interest", "talk-show", "sporting-event"],
     "blacklisted_networks": ["youtube", "twitch", "nickelodeon", "hallmark", "cartoon network"],
-    "blacklisted_min_year": 0,          // first aired this year or later: new series, not new seasons
-    "blacklisted_max_year": "+1",
-    "blacklisted_min_runtime": 15
+    "blacklisted_min_year": "{year}",   // first aired this year or later: new series, not new seasons
+    "blacklisted_max_year": "{year}+1",
+    "blacklisted_min_runtime": 15,
+    "anticipated_min_lists": 2500
   }
 }
 ```
@@ -180,10 +187,33 @@ The original defaults (20 anticipated + 5 popular + 3 box office + 2 trending) a
   Fetch the current lists with `curl -H "trakt-api-version: 2" -H "trakt-api-key: …" https://api.trakt.tv/genres/movies`
   (or `/genres/shows`).
 
-### Years
+### Years and dates
 
-`blacklisted_min_year` and `blacklisted_max_year` take a fixed year (`2026`) or one relative to the current year: `0` is this
-year, `"+1"` next year, `"-2"` two years ago. For shows the year is the year the series first aired.
+`blacklisted_min_year` / `blacklisted_max_year` take a fixed year (`2026`) or one relative to the current year:
+`"{year}"` is this year, `"{year}+1"` next year, `"{year}-2"` two years ago (`0`, `"+1"`, `"-2"` also work).
+
+`released_after` / `released_before` filter on the exact date: a movie's release date, a show's first-aired date. They
+take a date (`"2026-06-01"`), `"today"`, or a distance from today: `"-3mo"`, `"+12mo"`, `"-90d"`, `"-2w"`, `"+1y"`
+(`"-3 months"` works too). Leave them out for no limit. A title with no date yet is skipped when either is set.
+
+For shows, years and dates are when the series first aired, so these filters pick new series, not new seasons.
+
+### Anticipated titles
+
+Unreleased titles have no reviews and few votes, so the anticipated list is ranked by **list count**: how many Trakt users
+have the title on a list. Blockbusters are on tens of thousands (Avengers: Doomsday 76k, Dune: Part Three 55k); small
+releases on a few hundred. `anticipated_min_lists` drops anything below your threshold.
+
+The Rotten Tomatoes minimum is skipped only while a movie is unreleased. Trakt's anticipated list also contains films
+already in cinemas, and those need the score like any other.
+
+### Trying changes
+
+Run a list once with `--dry-run` to see what your filters would add, without adding anything:
+
+```bash
+docker compose run --rm traktarr movies -t anticipated -l 3 -g "action,science-fiction,horror" -rt 75 --dry-run
+```
 
 ## Keeping unwanted titles out
 
@@ -210,6 +240,14 @@ trakt_authentication                       # sign in, for watchlists and private
 
 `--help` after any command lists all its options.
 
+## Console colours
+
+The console log is short and colour-coded: titles being added in green, skipped ones dimmed, list headers in pink,
+problems in red, with a neon banner at start-up. The log file (`config/traktarr.log`) keeps the full plain format.
+
+`docker logs` isn't a terminal, so colour is switched on with `TRAKTARR_COLOR=1` in the compose file; `0` turns it off.
+Set `TZ` there too, so log times and "this year" follow your time zone.
+
 ## Updating
 
 ```bash
@@ -223,7 +261,10 @@ On top of notlimahrelyt's Python 3.10+ port:
 
 - **Python 3.12 image** (`Dockerfile.mediabox`); `docker/Dockerfile` is still pinned to Python 3.7.
 - **Anticipated list works with a Rotten Tomatoes minimum.** Unreleased movies have no score, so before this nothing from
-  that list was ever added; the check is now skipped for it.
+  that list was ever added; now the check is skipped while a movie is unreleased.
+- **Anticipated titles ranked by Trakt list count**, with an `anticipated_min_lists` minimum.
+- **`released_after` / `released_before`** date filters, relative to today (`"-3mo"`) or fixed; **`{year}`** in year filters.
+- **Colour console** with a neon banner (`TRAKTARR_COLOR`); the log file stays plain.
 - **No more stalled runs.** Every title used to be checked by loading its themoviedb.org / thetvdb.com web page while
   pretending to be a browser, with no timeout; those requests got blocked and runs hung for hours. Now only the ID is
   checked, and Radarr/Sonarr look the title up themselves.

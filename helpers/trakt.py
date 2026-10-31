@@ -207,6 +207,9 @@ def is_show_blacklisted(show, blacklist_settings, ignore_blacklist, callback=Non
         if blacklisted_show_year(show, blacklist_settings.blacklisted_min_year,
                                  blacklist_settings.blacklisted_max_year):
             blacklisted = True
+        if blacklisted_release_date(show, 'show', blacklist_settings.released_after,
+                                    blacklist_settings.released_before):
+            blacklisted = True
         if blacklisted_show_network(show, blacklist_settings.blacklisted_networks):
             blacklisted = True
         if blacklisted_show_country(show, blacklist_settings.allowed_countries):
@@ -257,6 +260,31 @@ def blacklisted_movie_title(movie, blacklisted_keywords):
     except Exception:
         log.exception("Exception determining if movie had a blacklisted title %s: ", movie)
     return blacklisted
+
+
+def blacklisted_release_date(item, kind, after, before):
+    """True when a movie's release date, or a show's first-aired date, falls outside released_after ..
+    released_before. Both take 'YYYY-MM-DD', 'today' or a distance from today such as '-3mo' or '+12mo'."""
+    if not after and not before:
+        return False
+    import datetime
+    from helpers.misc import resolve_date
+    obj = item[kind]
+    when = obj.get('released') if kind == 'movie' else (obj.get('first_aired') or '')[:10]
+    try:
+        earliest, latest = resolve_date(after), resolve_date(before)
+    except ValueError:
+        log.error("released_after / released_before must be a date (YYYY-MM-DD), 'today' or a distance from today "
+                  "like '-3mo': got %r / %r", after, before)
+        return True
+    if not when:
+        log.debug("\'%s\' | Blacklisted Release Check    | Blacklisted because it has no release date.", obj['title'])
+        return True
+    date = datetime.date.fromisoformat(when)
+    if (earliest and date < earliest) or (latest and date > latest):
+        log.debug("\'%s\' | Blacklisted Release Check    | Blacklisted because it releases on %s.", obj['title'], when)
+        return True
+    return False
 
 
 def blacklisted_movie_year(movie, earliest_year, latest_year):
@@ -394,6 +422,9 @@ def is_movie_blacklisted(movie, blacklist_settings, ignore_blacklist, callback=N
             blacklisted = True
         if blacklisted_movie_year(movie, blacklist_settings.blacklisted_min_year,
                                   blacklist_settings.blacklisted_max_year):
+            blacklisted = True
+        if blacklisted_release_date(movie, 'movie', blacklist_settings.released_after,
+                                    blacklist_settings.released_before):
             blacklisted = True
         if blacklisted_movie_country(movie, blacklist_settings.allowed_countries):
             blacklisted = True

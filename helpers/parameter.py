@@ -7,6 +7,9 @@ def years(param_years: str, config_min_year: int, config_max_year: int):
 
     def operations(_year):
         _year = str(_year)
+        # "{year}", "{year}+1", "{year}-2": the same as "0", "+1", "-2"
+        if _year.startswith('{year}'):
+            _year = _year[len('{year}'):] or '0'
         current_year = time.localtime().tm_year
         ops = {"+": operator.add, "-": operator.sub}  # https://stackoverflow.com/a/1740759
 

@@ -596,6 +596,9 @@ def shows(
     elif sort == 'rating':
         sorted_series_list = misc_helper.sorted_list(processed_series_list, 'show', 'rating')
         log.info("Sorted shows list to process by highest 'rating'.")
+    elif list_type.lower() == 'anticipated':
+        sorted_series_list = anticipated_by_lists(processed_series_list, 'shows', cfg.filters.shows.anticipated_min_lists)
+        log.info("Sorted shows list to process by most anticipated (Trakt list count).")
     else:
         sorted_series_list = misc_helper.sorted_list(processed_series_list, 'show', 'votes')
         log.info("Sorted shows list to process by highest 'votes'.")
@@ -1168,6 +1171,9 @@ def movies(
     elif sort == 'rating':
         sorted_movies_list = misc_helper.sorted_list(processed_movies_list, 'movie', 'rating')
         log.info("Sorted movies list to process by highest 'rating'.")
+    elif list_type.lower() == 'anticipated':
+        sorted_movies_list = anticipated_by_lists(processed_movies_list, 'movies', cfg.filters.movies.anticipated_min_lists)
+        log.info("Sorted movies list to process by most anticipated (Trakt list count).")
     else:
         sorted_movies_list = misc_helper.sorted_list(processed_movies_list, 'movie', 'votes')
         log.info("Sorted movies list to process by highest 'votes'.")
@@ -1217,8 +1223,9 @@ def movies(
                     callback_remove_recommended if remove_rejected_from_recommended else None,
             ):
 
-                # Skip movie if below user specified min RT score
-                if rotten_tomatoes is not None and cfg.omdb.api_key:
+                # Skip movie if below user specified min RT score. Unreleased movies have no score yet, so they're
+                # exempt; once released they need the score, whichever list they come from.
+                if rotten_tomatoes is not None and cfg.omdb.api_key and not is_unreleased(sorted_movie):
                     if not omdb_helper.does_movie_have_min_req_rt_score(
                             cfg.omdb.api_key,
                             movie_title,
@@ -1355,6 +1362,23 @@ def callback_notify(data):
 ############################################################
 # AUTOMATIC
 ############################################################
+
+
+def is_unreleased(movie):
+    """No release date yet, or one in the future."""
+    import datetime
+    released = movie['movie'].get('released')
+    return not released or released > datetime.date.today().isoformat()
+
+
+def anticipated_by_lists(items, kind, min_lists):
+    """Anticipated titles are unreleased and have few votes, so rank them by list_count (how many Trakt users have
+    them on a list) and drop those on fewer than filters.<kind>.anticipated_min_lists lists."""
+    if min_lists:
+        before = len(items)
+        items = [i for i in items if (i.get('list_count') or 0) >= int(min_lists)]
+        log.info("Anticipation: %d of %d %s are on at least %d Trakt lists.", len(items), before, kind, int(min_lists))
+    return sorted(items, key=lambda i: i.get('list_count') or 0, reverse=True)
 
 
 def allowed_genres_arg(kind):
@@ -1551,8 +1575,7 @@ def automatic_movies(
                     notifications=notifications,
                     genres=allowed_genres_arg('movies'),
                     ignore_blacklist=local_ignore_blacklist,
-                    # anticipated movies are unreleased, so they never have a Rotten Tomatoes score yet
-                    rotten_tomatoes=None if list_type.lower() == 'anticipated' else rotten_tomatoes,
+                    rotten_tomatoes=rotten_tomatoes,
                 )
 
             elif list_type.lower() == 'watchlist':
@@ -1759,19 +1782,13 @@ def exit_handler(signum, frame):
 if __name__ == "__main__":
     print("")
 
-    f = Figlet(font='graffiti')
-    print(f.renderText('Traktarr'))
-
-    print("""
-#########################################################################
-# Author:   l3uddz                                                      #
-# URL:      https://github.com/l3uddz/traktarr                          #
-# --                                                                    #
-#         Part of the Cloudbox project: https://cloudbox.works          #
-#########################################################################
-#                   GNU General Public License v3.0                     #
-#########################################################################
-""")
+    from misc.colors import NEON, rgb, use_color
+    art = [line for line in Figlet(font='ansi_shadow', width=200).renderText('TRAKTARR').splitlines() if line.strip()]
+    color = use_color()
+    for i, line in enumerate(art):
+        print((rgb(*NEON[i * len(NEON) // len(art)], bold=True) + line + '\x1b[0m') if color else line)
+    credit = 'adds new movies & shows from Trakt to Radarr/Sonarr  ·  by l3uddz & contributors  ·  GPL-3.0'
+    print(('\x1b[38;2;150;150;160m' + credit + '\x1b[0m\n') if color else credit + '\n')
 
     # Register the signal handlers
     signal.signal(signal.SIGTERM, exit_handler)

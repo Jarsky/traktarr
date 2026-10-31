@@ -1,3 +1,4 @@
+import re
 import collections.abc
 from copy import copy
 
@@ -95,6 +96,33 @@ def allowed_genres(genres, object_type, trakt_object):
                 allowed_object = True
                 break
     return allowed_object
+
+
+_RELATIVE_DATE = re.compile(r'^([+-])\s*(\d+)\s*(d|days?|w|weeks?|mo|months?|y|years?)$', re.IGNORECASE)
+
+
+def resolve_date(spec, today=None):
+    """A date filter value -> datetime.date. Accepts 'YYYY-MM-DD', 'today', or a distance from today such as
+    '-3mo', '+12mo', '-90d', '-2w', '+1y' (also '-3 months', '+1 year'). Empty means no limit (None)."""
+    import calendar
+    import datetime
+    if spec in (None, '', 0):
+        return None
+    today = today or datetime.date.today()
+    text = str(spec).strip()
+    if text.lower() == 'today':
+        return today
+    m = _RELATIVE_DATE.match(text)
+    if not m:
+        return datetime.date.fromisoformat(text)    # ValueError for anything else
+    sign = 1 if m.group(1) == '+' else -1
+    n, unit = int(m.group(2)), m.group(3).lower()
+    if unit.startswith(('mo', 'y')):
+        months = sign * n * (12 if unit.startswith('y') else 1)
+        year, month = divmod(today.month - 1 + months, 12)
+        year, month = today.year + year, month + 1
+        return datetime.date(year, month, min(today.day, calendar.monthrange(year, month)[1]))
+    return today + datetime.timedelta(days=sign * n * (7 if unit.startswith('w') else 1))
 
 
 def sorted_list(original_list, list_type, sort_key, reverse=True):
