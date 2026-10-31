@@ -69,41 +69,34 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "trakt-api-version: 2" -H "trakt-api
 
 ## Install with Docker Compose
 
-Keep the source next to the compose file, so an update is one `docker compose up -d --build`:
+```bash
+sudo mkdir -p /opt/traktarr && sudo chown "$USER" /opt/traktarr
+git clone https://github.com/Jarsky/traktarr.git /opt/traktarr
+cd /opt/traktarr
+cp docker-compose.example.yml docker-compose.yml
+cp .env.example .env                    # set your time zone
+docker compose up -d --build
+```
+
+On first start, traktarr writes a default `config/config.json` and stops. [Fill it in](#configure), then
+`docker compose up -d` again and watch it with `docker logs -f traktarr`.
 
 ```
 /opt/traktarr/
-├── docker-compose.yml
-├── config/          config.json, cache.db, traktarr.log
-└── src/             this repository
+├── docker-compose.yml   your copy of docker-compose.example.yml
+├── .env                 your copy of .env.example: time zone, colour, config folder
+├── config/              config.json, cache.db, traktarr.log
+└── …                    the source
 ```
 
-`/opt/traktarr/docker-compose.yml`:
+Your `docker-compose.yml`, `.env` and `config/` aren't tracked by git, so `git pull` never touches them.
 
-```yaml
-services:
-  traktarr:
-    build: ./src
-    image: traktarr:local
-    container_name: traktarr
-    command: ["run"]                     # every automatic.*.interval hours; restarts don't add an extra run
-    environment:
-      - TZ=Etc/UTC                       # your time zone, e.g. Europe/London: log times and "this year" follow it
-      - TRAKTARR_COLOR=1                 # colour in docker logs
-    volumes:
-      - ./config:/config
-    restart: unless-stopped
-```
-
-```bash
-sudo mkdir -p /opt/traktarr && sudo chown "$USER" /opt/traktarr
-git clone https://github.com/Jarsky/traktarr.git /opt/traktarr/src
-cd /opt/traktarr                       # create docker-compose.yml here (above)
-docker compose up -d --build && docker logs -f traktarr
-```
-
-On first start, traktarr writes a default `config/config.json` and exits. [Fill it in](#configure), then
-`docker compose up -d` again.
+| `.env` | Default | |
+|---|---|---|
+| `TZ` | `Etc/UTC` | your time zone; log times and "this year" in the filters follow it |
+| `TRAKTARR_COLOR` | `1` | colour in `docker logs`; `0` for plain text |
+| `CONFIG_DIR` | `./config` | where `config.json`, `cache.db` and `traktarr.log` live |
+| `DOCKER_NETWORK` | `media` | only with the networks section enabled (below) |
 
 ### Reaching Radarr and Sonarr
 
@@ -112,19 +105,8 @@ traktarr talks to Radarr and Sonarr over their APIs. Either:
 - **Use their address** in `radarr.url` / `sonarr.url`, e.g. `http://192.168.1.10:7878/`. Works wherever they run, with
   the compose file above as it is.
 - **Or join their Docker network** and use their container names (`http://radarr:7878/`). Find the network with
-  `docker inspect radarr --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`, then add to the
-  compose file:
-
-  ```yaml
-  services:
-    traktarr:
-      # …as above, plus:
-      networks: [media]
-  networks:
-    media:
-      name: YOUR_NETWORK_NAME
-      external: true
-  ```
+  `docker inspect radarr --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`, set
+  `DOCKER_NETWORK` in `.env`, and uncomment the two `networks` parts of your `docker-compose.yml`.
 
 `localhost` doesn't work from inside the container: it means the container itself.
 
@@ -348,8 +330,7 @@ Set `TZ` there too, so log times and "this year" follow your time zone.
 ## Updating
 
 ```bash
-cd /opt/traktarr/src && git pull
-cd .. && docker compose up -d --build
+cd /opt/traktarr && git pull && docker compose up -d --build
 ```
 
 ## Changes in this copy
@@ -357,6 +338,7 @@ cd .. && docker compose up -d --build
 Changes stay in this fork; nothing is sent upstream. On top of notlimahrelyt's Python 3.10+ port:
 
 - **Python 3.12 image** (`Dockerfile`), replacing the old Python 3.7 one and its Docker Hub hooks.
+- **Ready-made `docker-compose.example.yml` and `.env.example`:** clone, copy two files, start.
 - **Defaults that work today:** the generated config uses this year to next year (not 2000–2019), adds at most one
   title a day per list, includes the new filters, and uses Sonarr v4+'s `"Deprecated"` language.
 - **Anticipated list works with a Rotten Tomatoes minimum.** Unreleased movies have no score, so before this nothing from

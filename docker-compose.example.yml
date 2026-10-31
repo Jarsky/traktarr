@@ -1,0 +1,28 @@
+# traktarr: adds new movies and shows from Trakt lists to Radarr and Sonarr.
+#
+#   cp docker-compose.example.yml docker-compose.yml
+#   cp .env.example .env              # then edit .env
+#   docker compose up -d --build      # first start writes config/config.json and stops: fill it in, then run this again
+#   docker logs -f traktarr
+#
+# Update: git pull && docker compose up -d --build
+services:
+  traktarr:
+    build: .
+    image: traktarr:local
+    container_name: traktarr
+    command: ["run"]                  # every automatic.*.interval hours; restarts don't add an extra run
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - TRAKTARR_COLOR=${TRAKTARR_COLOR:-1}
+    volumes:
+      - ${CONFIG_DIR:-./config}:/config
+    restart: unless-stopped
+    # To reach Radarr/Sonarr by container name (http://radarr:7878/), join their Docker network:
+    # find it with: docker inspect radarr --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+    # networks: [media]
+
+# networks:
+#   media:
+#     name: ${DOCKER_NETWORK:-media}
+#     external: true

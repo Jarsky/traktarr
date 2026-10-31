@@ -40,3 +40,8 @@ build/
 dist/
 *.manifest
 *.spec
+
+# your local setup (copies of the .example files) and runtime data
+/docker-compose.yml
+/.env
+/config/
