@@ -436,7 +436,7 @@ class Trakt:
             self._renew_oauth_token_if_expired(user)
             headers['Authorization'] = 'Bearer ' + self.cfg['trakt'][user]['access_token']
         else:
-            log.info('No user')
+            log.debug('No user')
 
         return headers, user
 

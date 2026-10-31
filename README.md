@@ -1,11 +1,27 @@
-# traktarr (Jarsky's copy)
+<p align="center"><img src="assets/banner.svg" alt="traktarr: new movies and shows from Trakt, straight into Radarr and Sonarr" width="100%"></p>
+
+<p align="center">
+  <a href="https://github.com/Jarsky/traktarr/actions/workflows/ci.yml"><img src="https://github.com/Jarsky/traktarr/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-GPL--3.0-9b5cff" alt="GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/python-3.12-3fa0ff" alt="Python 3.12">
+  <img src="https://img.shields.io/badge/docker-compose-22d3ee" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/Trakt%20API-2026%20ready-ff2bd6" alt="Trakt API: 2026 ready">
+  <a href="https://github.com/l3uddz/traktarr"><img src="https://img.shields.io/badge/fork%20of-l3uddz%2Ftraktarr-555" alt="Fork of l3uddz/traktarr"></a>
+</p>
+
+# traktarr
 
 Adds new movies and shows to Radarr and Sonarr from Trakt's anticipated, popular, trending and box office lists, filtered by
-language, country, year, genre, network, runtime and Rotten Tomatoes score.
+language, country, genre, release date, buzz, network, runtime and Rotten Tomatoes score.
 
-This is a private, maintained copy of [l3uddz/traktarr](https://github.com/l3uddz/traktarr) (unmaintained since 2023),
-built on [notlimahrelyt/traktarr](https://github.com/notlimahrelyt/traktarr), which ported it to current Python. Our changes are
-listed [below](#changes-in-this-copy). Licensed GPL-3.0, like the original.
+A maintained fork of [l3uddz/traktarr](https://github.com/l3uddz/traktarr) (unmaintained since 2023), built on
+[notlimahrelyt/traktarr](https://github.com/notlimahrelyt/traktarr)'s port to current Python. It works with Trakt's 2026 API
+changes, current Radarr and Sonarr v4+, and adds date, anticipation and allowed-genre filters, a colour console and fixes
+for runs that used to hang. See [what's changed](#changes-in-this-copy). Licensed GPL-3.0, like the original.
+
+<p align="center">
+  <img src="assets/screenshots/anticipated-shows.svg" alt="A dry run of the anticipated shows list: the most anticipated series that pass the filters" width="100%">
+</p>
 
 ## Contents
 
@@ -228,7 +244,11 @@ have the title on a list. Blockbusters are on tens of thousands (Avengers: Dooms
 releases on a few hundred. `anticipated_min_lists` drops anything below your threshold.
 
 The Rotten Tomatoes minimum is skipped only while a movie is unreleased. Trakt's anticipated list also contains films
-already in cinemas, and those need the score like any other.
+already in cinemas, and those need the score like any other:
+
+<p align="center">
+  <img src="assets/screenshots/anticipated-movies.svg" alt="A dry run of the anticipated movies list: films already released are skipped for low Rotten Tomatoes scores" width="100%">
+</p>
 
 ### Trying changes
 
@@ -311,7 +331,7 @@ cd .. && docker compose up -d --build
 
 ## Changes in this copy
 
-On top of notlimahrelyt's Python 3.10+ port:
+Changes stay in this fork; nothing is sent upstream. On top of notlimahrelyt's Python 3.10+ port:
 
 - **Python 3.12 image** (`Dockerfile.mediabox`); `docker/Dockerfile` is still pinned to Python 3.7.
 - **Anticipated list works with a Rotten Tomatoes minimum.** Unreleased movies have no score, so before this nothing from
@@ -327,7 +347,8 @@ On top of notlimahrelyt's Python 3.10+ port:
 - **Honest user agent:** Trakt requests identify as `traktarr` rather than a browser.
 - **`disabled_for` works for watchlists and custom lists** (`"watchlist:USER"`, `"list:URL"`); the names were never
   filled in before, so those entries never matched.
-- Regex escape warnings on Python 3.12 fixed.
+- Regex escape warnings on Python 3.12 fixed; the "No user" line no longer repeats on every request.
+- **Tests and CI:** `tests/` covers the filters; GitHub Actions runs them and builds the Docker image on every push.
 
 ## Credits
 
