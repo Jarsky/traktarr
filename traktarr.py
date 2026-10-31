@@ -409,12 +409,13 @@ def shows(
             misc_helper.unblacklist_genres(genres, cfg['filters']['shows']['blacklisted_genres'])
             log.debug("Filter Trakt results with genre(s): %s", ', '.join(map(lambda x: x.title(), genres)))
 
-    # process years parameter
-    years, new_min_year, new_max_year = parameter_helper.years(
-        years,
-        cfg.filters.shows.blacklisted_min_year,
-        cfg.filters.shows.blacklisted_max_year,
+    # process years parameter. The configured years can be relative ("0" = this year, "+1" = next year);
+    # the resolved years are written back below, so keep the configured ones for the next automatic run
+    year_spec = cfg['filters']['shows'].setdefault(
+        '_configured_years',
+        [cfg.filters.shows.blacklisted_min_year, cfg.filters.shows.blacklisted_max_year],
     )
+    years, new_min_year, new_max_year = parameter_helper.years(years, *year_spec)
 
     cfg['filters']['shows']['blacklisted_min_year'] = new_min_year
     cfg['filters']['shows']['blacklisted_max_year'] = new_max_year
@@ -628,8 +629,8 @@ def shows(
         series_genres = (', '.join(series['show']['genres'])).title() if series['show']['genres'] else 'N/A'
 
         try:
-            # check if movie has a valid TVDB ID and that it exists on TVDB
-            if not tvdb_helper.check_series_tvdb_id(series_title, series_year, series_tvdb_id):
+            # check the show has a valid TVDB ID; Sonarr looks it up itself when adding it
+            if not tvdb_helper.validate_series_tvdb_id(series_title, series_year, series_tvdb_id):
                 continue
 
             # check if genres matches genre(s) supplied via argument
@@ -964,12 +965,13 @@ def movies(
             misc_helper.unblacklist_genres(genres, cfg['filters']['movies']['blacklisted_genres'])
             log.debug("Filter Trakt results with genre(s): %s", ', '.join(map(lambda x: x.title(), genres)))
 
-    # process years parameter
-    years, new_min_year, new_max_year = parameter_helper.years(
-        years,
-        cfg.filters.movies.blacklisted_min_year,
-        cfg.filters.movies.blacklisted_max_year,
+    # process years parameter. The configured years can be relative ("0" = this year, "+1" = next year);
+    # the resolved years are written back below, so keep the configured ones for the next automatic run
+    year_spec = cfg['filters']['movies'].setdefault(
+        '_configured_years',
+        [cfg.filters.movies.blacklisted_min_year, cfg.filters.movies.blacklisted_max_year],
     )
+    years, new_min_year, new_max_year = parameter_helper.years(years, *year_spec)
 
     cfg['filters']['movies']['blacklisted_min_year'] = new_min_year
     cfg['filters']['movies']['blacklisted_max_year'] = new_max_year
@@ -1196,8 +1198,9 @@ def movies(
             if sorted_movie['movie']['genres'] else 'N/A'
 
         try:
-            # check if movie has a valid TMDb ID and that it exists on TMDb
-            if not tmdb_helper.check_movie_tmdb_id(movie_title, movie_year, movie_tmdb_id):
+            # check the movie has a valid TMDb ID; Radarr looks it up itself when adding it.
+            # (Fetching each movie's themoviedb.org page here was slow, had no timeout and got blocked.)
+            if not tmdb_helper.validate_movie_tmdb_id(movie_title, movie_year, movie_tmdb_id):
                 continue
 
             # check if genres matches genre(s) supplied via argument
@@ -1354,6 +1357,16 @@ def callback_notify(data):
 ############################################################
 
 
+def allowed_genres_arg(kind):
+    """Comma-separated genres from filters.<kind>.allowed_genres (a title needs at least one of them),
+    or None to allow any genre."""
+    try:
+        genres = cfg['filters'][kind]['allowed_genres']
+    except (KeyError, TypeError):
+        return None
+    return ','.join(genres) if genres else None
+
+
 def automatic_shows(
         add_delay=2.5,
         sort='votes',
@@ -1402,6 +1415,7 @@ def automatic_shows(
                     sort=sort,
                     no_search=no_search,
                     notifications=notifications,
+                    genres=allowed_genres_arg('shows'),
                     ignore_blacklist=local_ignore_blacklist,
                 )
 
@@ -1535,8 +1549,10 @@ def automatic_movies(
                     sort=sort,
                     no_search=no_search,
                     notifications=notifications,
+                    genres=allowed_genres_arg('movies'),
                     ignore_blacklist=local_ignore_blacklist,
-                    rotten_tomatoes=rotten_tomatoes,
+                    # anticipated movies are unreleased, so they never have a Rotten Tomatoes score yet
+                    rotten_tomatoes=None if list_type.lower() == 'anticipated' else rotten_tomatoes,
                 )
 
             elif list_type.lower() == 'watchlist':
