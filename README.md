@@ -1,1572 +1,238 @@
-<img src="assets/logo.svg" width="600" alt="Traktarr">
-
-[![made-with-python](https://img.shields.io/badge/Made%20with-Python-blue.svg?style=flat-square)](https://www.python.org/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%203-blue.svg?style=flat-square)](https://github.com/l3uddz/traktarr/blob/master/LICENSE.md)
-[![last commit (master)](https://img.shields.io/github/last-commit/l3uddz/traktarr/master.svg?colorB=177DC1&label=Last%20Commit&style=flat-square)](https://github.com/l3uddz/traktarr/commits/master)
-[![Discord](https://img.shields.io/discord/853755447970758686.svg?colorB=177DC1&label=Discord&style=flat-square)](https://discord.gg/ugfKXpFND8)
-[![Contributing](https://img.shields.io/badge/Contributing-gray.svg?style=flat-square)](CONTRIBUTING.md)
-[![Donate](https://img.shields.io/badge/Donate-gray.svg?style=flat-square)](DONATIONS.md)
-
-
----
-
-<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
-
-- [Introduction](#introduction)
-- [Demo](#demo)
-- [Requirements](#requirements)
-- [Installation](#installation)
-  - [1. Base Install](#1-base-install)
-  - [2. Create a Trakt Application](#2-create-a-trakt-application)
-  - [3. Authenticate User(s) (optional)](#3-authenticate-users-optional)
-- [Configuration](#configuration)
-  - [Sample Configuration](#sample-configuration)
-  - [Core](#core)
-  - [Automatic](#automatic)
-    - [Personal Watchlists](#personal-watchlists)
-    - [Custom Lists](#custom-lists)
-      - [Public Lists](#public-lists)
-      - [Private Lists](#private-lists)
-  - [Filters](#filters)
-    - [Movies](#movies)
-    - [Shows](#shows)
-  - [Notifications](#notifications)
-    - [Apprise](#apprise)
-    - [Pushover](#pushover)
-    - [Slack](#slack)
-  - [Radarr](#radarr)
-  - [Sonarr](#sonarr)
-  - [Trakt](#trakt)
-  - [OMDb](#omdb)
-- [Usage](#usage)
-  - [Automatic (Scheduled)](#automatic-scheduled)
-    - [Setup](#setup)
-    - [Customize](#customize)
-  - [Manual (CLI)](#manual-cli)
-    - [General](#general)
-    - [Movie (Single Movie)](#movie-single-movie)
-    - [Movies (Multiple Movies)](#movies-multiple-movies)
-    - [Show (Single Show)](#show-single-show)
-    - [Shows (Multiple Shows)](#shows-multiple-shows)
-  - [Examples (CLI)](#examples-cli)
-    - [Movies](#movies-1)
-    - [Shows](#shows-1)
-- [Donate](#donate)
-
-<!-- /TOC -->
-
----
-
-# Introduction
-
-Traktarr uses Trakt.tv to find shows and movies to add in to Sonarr and Radarr, respectively.
-
-Types of Trakt lists supported:
-
-- Official Trakt Lists
-
-  - Trending
-
-  - Popular
-
-  - Anticipated
-
-  - Box Office
-
-  - Most Watched
-
-  - Most Played
-
-- Public Lists
-
-- Private Lists*
-
-  - Watchlist
-
-  - Custom List(s)
-
-\* Support for multiple (authenticated) users.
-
-# Demo
-
-Click to enlarge.
-
-[![asciicast](assets/demo.gif)](https://asciinema.org/a/180044)
-
-
-# Requirements
-
-1. Debian OS (can work in other operating systems as well).
-
-2. Python 3.5+
-
-3. Required Python modules.
-
-
-# Installation
-
-## 1. Base Install
-
-Installs Traktarr to the system so that it can be ran with the `traktarr` command.
-
-
-1. Clone the Traktarr repo.
-
-   ```
-   sudo git clone https://github.com/l3uddz/traktarr /opt/traktarr
-   ```
-
-1. Fix permissions of the `traktarr` folder (replace `user`/`group` with your info; run `id` to check).
-
-   ```
-   sudo chown -R user:group /opt/traktarr
-   ```
-
-1. Go into the `traktarr` folder.
-
-   ```
-   cd /opt/traktarr
-   ```
-
-1. Install Python and the venv module.
-
-   ```
-   sudo apt-get install python3 python3-pip python3-venv
-   ```
-
-1. Create a virtualenv and install the required python modules into it.
-
-   Installing into a virtualenv rather than system-wide keeps Traktarr's
-   dependencies from clashing with packages your distro manages.
-
-   ```
-   python3 -m venv /opt/traktarr/venv
-   /opt/traktarr/venv/bin/pip install -r requirements.txt
-   ```
-
-1. Create a shortcut for `traktarr` that runs it from the virtualenv.
-
-   ```
-   sudo tee /usr/local/bin/traktarr >/dev/null <<'EOF'
-   #!/bin/sh
-   exec /opt/traktarr/venv/bin/python3 /opt/traktarr/traktarr.py "$@"
-   EOF
-   sudo chmod 755 /usr/local/bin/traktarr
-   ```
-
-1. Generate a basic `config.json` file.
-
-   ```
-   traktarr run
-   ```
-
-1. Configure the `config.json` file.
-
-   ```
-   nano config.json
-   ```
-
-## 2. Create a Trakt Application
-
-1. Create a Trakt application by going [here](https://trakt.tv/oauth/applications/new)
-
-2. Enter a name for your application; for example `traktarr`
-
-3. Enter `urn:ietf:wg:oauth:2.0:oob` in the `Redirect uri` field.
-
-4. Click "SAVE APP".
-
-5. Open the Traktarr configuration file `config.json` and insert your Trakt Client ID in the `client_id` and your Trakt Client Secret in the `client_secret`, like this:
-
-   ```json
-   "trakt": {
-       "client_id": "your_trakt_client_id",
-       "client_secret": "your_trakt_client_secret"
-   }
-   ```
-
-## 3. Authenticate User(s) (optional)
-
-For each user you want to access the private lists for (i.e. watchlist and/or custom lists), you will need to to authenticate that user.
-
-Repeat the following steps for every user you want to authenticate:
-
-1. Run the following command:
-
-   ```
-   traktarr trakt_authentication
-   ```
-
-
-2. You wil get the following prompt:
-
-   ```
-   - We're talking to Trakt to get your verification code. Please wait a moment...
-   - Go to: https://trakt.tv/activate on any device and enter A0XXXXXX. We'll be polling Trakt every 5 seconds for a reply
-   ```
-3. Go to https://trakt.tv/activate.
-
-4. Enter the code you see in your terminal.
-
-5. Click **Continue**.
-
-6. If you are not logged in to Trakt.tv, login now.
-
-7. Click **Accept**.
-
-8. You will get the message: "Woohoo! Your device is now connected and will automatically refresh in a few seconds.".
-
-You've now authenticated the user.
-
-You can repeat this process for as many users as you like.
-
-
-# Configuration
-
-## Sample Configuration
-
-```json
+# traktarr (Jarsky's copy)
+
+Adds new movies and shows to Radarr and Sonarr from Trakt's anticipated, popular, trending and box office lists, filtered by
+language, country, year, genre, network, runtime and Rotten Tomatoes score.
+
+This is a private, maintained copy of [l3uddz/traktarr](https://github.com/l3uddz/traktarr) (unmaintained since 2023),
+built on [notlimahrelyt/traktarr](https://github.com/notlimahrelyt/traktarr), which ported it to current Python. Our changes are
+listed [below](#changes-in-this-copy). Licensed GPL-3.0, like the original.
+
+## Contents
+
+- [Create a Trakt API key](#create-a-trakt-api-key)
+- [Install with Docker Compose](#install-with-docker-compose)
+- [Configure](#configure)
+- [Filter examples](#filter-examples)
+- [Keeping unwanted titles out](#keeping-unwanted-titles-out)
+- [Commands](#commands)
+- [Updating](#updating)
+- [Changes in this copy](#changes-in-this-copy)
+
+## Create a Trakt API key
+
+Since mid-2026, Trakt only accepts API apps from verified developers, and it disabled many older apps, which then answer
+every request with `403 Forbidden`. If traktarr logs `Aborting due to failure to validate Trakt API Key`, create a new app:
+
+1. Sign in at [trakt.tv](https://trakt.tv) and open **Settings → Your API Apps** (the developer portal).
+2. **Link your GitHub account** to your developer profile. This is currently the only verification needed to create an app,
+   and from **1 January 2027** apps without a linked GitHub account become unapproved.
+3. Create a new application:
+
+   | Field | Value |
+   |---|---|
+   | Name | anything, e.g. `traktarr-mediabox` |
+   | Redirect URI | `http://localhost/callback`. Development apps only allow localhost, and traktarr never uses it |
+   | Allowed origins | leave empty. They only matter for apps running in a web browser |
+   | Permissions (check-in, scrobble) | leave unticked |
+
+4. Copy the **Client ID** into `trakt.client_id` in `config.json`. Development apps sign in with PKCE and get **no client
+   secret**; leave `trakt.client_secret` empty.
+
+The anticipated, popular, trending and box office lists only need the client ID. Watchlists and private lists also need
+`traktarr trakt_authentication` (a device code you enter at trakt.tv/activate); a development app allows its owner and up to
+50 invited users to sign in.
+
+Check the key works:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -H "trakt-api-version: 2" -H "trakt-api-key: YOUR_CLIENT_ID" \
+  -A traktarr "https://api.trakt.tv/movies/anticipated?limit=1"     # 200 = good, 403 = app disabled or unapproved
+```
+
+## Install with Docker Compose
+
+The source lives next to the compose file, so an update is one `docker compose up -d --build`:
+
+```
+/opt/appdata/traktarr/
+├── docker-compose.yml
+├── config/          config.json, cache.db, traktarr.log
+└── src/             this repository
+```
+
+```yaml
+services:
+  traktarr:
+    build:
+      context: ./src
+      dockerfile: Dockerfile.mediabox
+    image: traktarr:local
+    container_name: traktarr
+    command: ["run", "--run-now"]        # check the lists now, then every automatic.*.interval hours
+    networks:
+      - mediabox                         # the network Radarr and Sonarr are on
+    volumes:
+      - ./config:/config
+    restart: unless-stopped
+networks:
+  mediabox:
+    external: true
+```
+
+```bash
+git clone https://github.com/Jarsky/traktarr.git /opt/appdata/traktarr/src
+cd /opt/appdata/traktarr
+docker compose up -d --build && docker logs -f traktarr
+```
+
+On first start without a config, traktarr writes a default `config/config.json` and exits. Fill it in and start it again.
+
+## Configure
+
+The parts of `config.json` that matter most (the full file has more filters):
+
+```jsonc
 {
-  "core": {
-    "debug": false
-  },
-  "automatic": {
-    "movies": {
-      "anticipated": 3,
-      "boxoffice": 10,
-      "interval": 24,
-      "popular": 3,
-      "trending": 2
-    },
-    "shows": {
-      "anticipated": 10,
-      "interval": 48,
-      "popular": 1,
-      "trending": 2
-    }
-  },
-  "filters": {
-    "movies": {
-      "disabled_for": [],
-      "allowed_countries": [
-        "us",
-        "gb",
-        "ca"
-      ],
-      "allowed_languages": [
-        "en"
-      ],
-      "blacklisted_genres": [
-        "documentary",
-        "music",
-        "animation"
-      ],
-      "blacklisted_max_runtime": 0,
-      "blacklisted_min_runtime": 60,
-      "blacklisted_min_year": 2000,
-      "blacklisted_max_year": 2019,
-      "blacklisted_title_keywords": [
-        "untitled",
-        "barbie",
-        "ufc"
-      ],
-      "blacklisted_tmdb_ids": [],
-      "rotten_tomatoes": ""
-    },
-    "shows": {
-      "disabled_for": [],
-      "allowed_countries": [
-        "us",
-        "gb",
-        "ca"
-      ],
-      "allowed_languages": [],
-      "blacklisted_genres": [
-        "animation",
-        "game-show",
-        "talk-show",
-        "home-and-garden",
-        "children",
-        "reality",
-        "anime",
-        "news",
-        "documentary",
-        "special-interest"
-      ],
-      "blacklisted_networks": [
-        "twitch",
-        "youtube",
-        "nickelodeon",
-        "hallmark",
-        "reelzchannel",
-        "disney",
-        "cnn",
-        "cbbc",
-        "the movie network",
-        "teletoon",
-        "cartoon network",
-        "espn",
-        "yahoo!",
-        "fox sports"
-      ],
-      "blacklisted_max_runtime": 0,
-      "blacklisted_min_runtime": 15,
-      "blacklisted_min_year": 2000,
-      "blacklisted_max_year": 2019,
-      "blacklisted_title_keywords": [],
-      "blacklisted_tvdb_ids": []
-    }
-  },
-  "notifications": {
-    "pushover": {
-      "service": "pushover",
-      "app_token": "",
-      "user_token": "",
-      "priority": 0
-    },
-    "slack": {
-      "service": "slack",
-      "webhook_url": ""
-    },
-    "verbose": true
-  },
+  "trakt":  { "client_id": "YOUR_CLIENT_ID", "client_secret": "" },
+  "omdb":   { "api_key": "YOUR_OMDB_KEY" },          // only needed for the Rotten Tomatoes filter
   "radarr": {
-    "api_key": "",
-    "minimum_availability": "released",
-    "quality": "HD-1080p",
-    "root_folder": "/movies/",
-    "url": "http://localhost:7878/"
+    "url": "http://radarr:7878/",
+    "api_key": "…",
+    "quality": "1080pToUltraHD",                     // quality profile name (case doesn't matter)
+    "root_folder": "/data/movies",                   // as Radarr sees it, not as traktarr does
+    "minimum_availability": "released"
   },
   "sonarr": {
-    "api_key": "",
-    "language": "English",
-    "quality": "HD-1080p",
-    "root_folder": "/tv/",
-    "season_folder": true,
-    "tags": [],
-    "url": "http://localhost:8989/"
-  },
-  "trakt": {
-    "client_id": "",
-    "client_secret": ""
-  },
-  "omdb": {
-    "api_key": ""
+    "url": "http://sonarr:8989/",
+    "api_key": "…",
+    "quality": "1080pToUltraHD",
+    "language": "Deprecated",                        // Sonarr v4+ has no language profiles; its API returns this one
+    "root_folder": "/data/tv_shows",
+    "tags": []
   }
 }
 ```
 
+## Filter examples
 
-## Core
+### How many get added
 
-```json
-"core": {
-  "debug": false
-},
-```
+Each number in `automatic` is a **per-run limit for that list**, and a run happens every `interval` hours. The daily maximum
+is the sum. Within each list traktarr picks the most-voted titles that pass every filter.
 
-`debug` - Toggle debug messages in the log. Default is `false`.
-
-  - Set to `true`, if you are having issues and want to diagnose why.
-
-
-## Automatic
-
-```json
+```jsonc
 "automatic": {
-  "movies": {
-    "anticipated": 3,
-    "boxoffice": 10,
-    "interval": 24,
-    "popular": 3,
-    "trending": 0,
-    "watched": 2,
-    "played_all": 2,
-    "watchlist": {},
-    "lists": {},
-  },
-  "shows": {
-    "anticipated": 10,
-    "interval": 48,
-    "popular": 1,
-    "trending": 2,
-    "watched_monthly": 2,
-    "played": 2,
-    "watchlist": {},
-    "lists": {}
-  }
-},
-```
-Used for automatic / scheduled Traktarr tasks.
-
-Movies can be run on a separate schedule then from Shows.
-
-_Note: These settings are only needed if you plan to use Traktarr on a schedule (vs just using it as a CLI command only; see [Usage](#usage))._
-
-Format:
-
- - "List Name": # of items to add into Radarr/Sonarr.
-
-_Note: The number specified is the number of items that will be added into Radarr/Sonarr. It is not a Trakt list limit, i.e. this is not going to lookup Top X items._
-
-### Interval
-
-`interval` - Specify how often (in hours) to run Traktarr task.
-
-  - Setting `interval` to `0`, will skip the schedule for that task.
-
-  - For example, if you only want to add movies and not TV shows, you can set show's `interval` to `0`.
-
-### Official Trakt Lists
-
-`anticipated` - Trakt Anticipated List.
-
-- Most anticipated movies/shows based on the number of lists a movie/show appears on.
-
-`popular` - Trakt Popular List.
-
--  Most popular movies/shows. Popularity is calculated using the rating percentage and the number of ratings.
-
-`trending` - Trakt Trending List.
-
-- All movies/shows being watched right now. Movies with the most users are returned first.
-
-`boxoffice` - Trakt Box Office List. Movies only.
-
-- Top 10 grossing movies in the U.S. box office last weekend. Updated every Monday morning.
-
-`watched` - Most watched (unique users) movies in the specified time period.
-
-  - `watched` / `watched_weekly` - Most watched in the week.
-
-  - `watched_monthly` - Most watched in the month.
-
-  - `watched_yearly` - Most watched in the year.
-
-  - `watched_all` - Most watched of all time.
-
-`played` - Most played (a single user can watch multiple times) items in the specified time period.
-
-  - `played` / `played_weekly` - Most played in the week.
-
-  - `played_monthly` - Most played in the month.
-
-  - `played_yearly` - Most played in the year.
-
-  - `played_all` Most played of all time.
-
-`watchlist` - Specify which watchlists to fetch (see explanation below).
-
-### Custom Lists
-
-`lists` - Specify which custom lists to fetch (see explanation below).
-
-You can also schedule any number of public or private custom lists.
-
-For both public and private lists you'll need the url to that list. When viewing the list on Trakt, simply copy the url from the address bar of the your browser.
-
-_Note: These are for non-watchlist lists. If you want to add a watchlist list, use the next section below._
-
-#### Public Lists
-
-Public lists can be added by specifying the url and the item limit like this:
-
-```json
-"automatic": {
-  "movies": {
-    "lists": {
-        "https://trakt.tv/users/rkerwin/lists/top-100-movies": 10
-    }
-  },
-  "shows": {
-    "lists": {
-        "https://trakt.tv/users/claireaa/lists/top-100-tv-shows-of-all-time-ign": 10
-    }
-  }
-},
-```
-
-
-#### Private Lists
-
-Private lists can be added in two ways:
-
-1. If there is only one authenticated user, you can add the private list just like any other public list:
-
-   ```json
-   "automatic": {
-     "movies": {
-       "lists": {
-           "https://trakt.tv/users/user/lists/my-private-movies-list": 10
-       }
-     },
-     "shows": {
-       "lists": {
-           "https://trakt.tv/users/user/lists/my-private-shows-list": 10
-       }
-     }
-   },
-   ```
-
-2. If there are multiple authenticated users you want to fetch the lists from, you'll need to specify the username under `authenticate_as`.
-
-   _Note: The user should have access to the list (either own the list or a list that was shared to them by a friend)._
-
-   ```json
-   "automatic": {
-     "movies": {
-       "lists": {
-           "https://trakt.tv/users/user/lists/my-private-movies-list": {
-               "authenticate_as": "user2",
-               "limit": 10
-           }
-       }
-     },
-     "shows": {
-       "lists": {
-           "https://trakt.tv/users/user/lists/my-private-shows-list": {
-               "authenticate_as": "user2",
-               "limit": 10
-           }
-       }
-     }
-   },
-   ```
-### Personal Trakt Watchlists
-
-The watchlist task can be scheduled with a different item limit for every (authenticated) user.
-
-So for every user, you will add: `"username": limit` to the watchlist key. For example:
-
-```json
-"automatic": {
-  "movies": {
-    "watchlist": {
-        "user1": 10,
-        "user2": 5
-    }
-  },
-  "shows": {
-    "watchlist": {
-        "user1": 2,
-        "user3": 1
-    }
-  }
-},
-```
-
-
-## Filters
-
-Use filters to specify the movie/shows's country of origin or blacklist (i.e. filter-out) certain keywords, genres, years, runtime, or specific movies/shows.
-
-### Movies
-
-```json
-  "movies": {
-    "disabled_for": [],
-    "allowed_countries": [
-      "us",
-      "gb",
-      "ca"
-    ],
-    "allowed_languages": [],
-    "blacklisted_genres": [
-      "documentary",
-      "music",
-      "animation"
-    ],
-    "blacklisted_max_runtime": 0,
-    "blacklisted_min_runtime": 60,
-    "blacklisted_min_year": 2000,
-    "blacklisted_max_year": 2019,
-    "blacklisted_title_keywords": [
-      "untitled",
-      "barbie"
-    ],
-    "blacklisted_tmdb_ids": [],
-    "rotten_tomatoes": ""
-  },
-```
-
-`disabled_for` - Specify for which lists the blacklist is disabled for, when running in automatic mode.
-
-- This is similar to running `--ignore-blacklist` via the CLI command.
-
-- Example:
-
-  ```json
-  "disabled_for": [
-      "anticipated",
-      "watchlist:user1",
-      "list:http://url-to-list"
-  ],
-  ```
-
-`allowed_countries` - Only add movies from these countries. Listed as two-letter country codes.
-
-- [List of available country codes](assets/list_of_country_codes.md).
-
-- Special keywords:
-
-  - Blank list (i.e. `[]`) - Add movies from any country.
-
-  - `ignore` (i.e. `["ignore"]`) - Add movies from any country, including ones with no country specified.
-
-`allowed_languages` - Only add movies with these languages. Listed as two-letter language codes.
-
-- Languages are in [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1) format (e.g. `ja` for Japanese.)
-
-- [List of available language codes](assets/list_of_language_codes.md).
-
-- Special keywords:
-
-  - Blank list (i.e. `[]`) - Add movies with any language.
-
-  - `ignore` (i.e. `["ignore"]`) - Add movies with any language, including ones with no language specified.
-
-`blacklisted_genres` - Blacklist certain genres.
-
-- [List of available movie genres](assets/list_of_movie_genres.md).
-
-- For an updated list, visit [here](https://trakt.docs.apiary.io/#reference/genres/list/get-genres).
-
-- Special Keywords:
-
-  - Blank list (i.e. `[]`) - Add movies from any genre.
-
-  - `ignore` (i.e. `["ignore"]`) - Add movies from any genre, including ones with no genre specified.
-
-`blacklisted_min_runtime` - Blacklist runtime duration shorter than specified time (in minutes).
-
-`blacklisted_max_runtime` - Blacklist runtime duration longer than specified time (in minutes).
-
-  - Has to be longer than `blacklisted_min_runtime` or else it will be ignored.
-
-`blacklisted_min_year` - Blacklist release dates before specified year. This can be a 4 digit year, `0`, or `-<number of years to go back>` format. 
-
-- If `0`, blacklist movies that came out before the current year. 
-
-- If `-10`, blacklist movies that came out 10 years before the current year.
-
-`blacklisted_max_year` - Blacklist release dates after specified year. This can be a 4 digit year, `0`, or `+<number of years to go forward>` format.
-
-- If `0`, blacklist movies that are coming out after the current year. 
-
-- If `+1`, blacklist movies that are coming out after 1 year from current year.
-
-`blacklisted_title_keywords` - Blacklist certain words in titles.
-
-`blacklisted_tmdb_ids` - Blacklist certain movies with their TMDB IDs.
-
-  - Example:
-
-    ```json
-    "blacklisted_tmdb_ids": [
-      140607,
-      181808
-    ],
-    ```
-
-`rotten_tomatoes` - Only add movies that are equal to or above this Rotten Tomatoes score. Requires an OMDb API Key (see [below](#omdb)).
-
-### Shows
-
-```json
-"shows": {
-  "allowed_countries": [
-    "us",
-    "gb",
-    "ca"
-  ],
-  "allowed_languages": [],
-  "blacklisted_genres": [
-    "animation",
-    "game-show",
-    "talk-show",
-    "home-and-garden",
-    "children",
-    "reality",
-    "anime",
-    "news",
-    "documentary",
-    "special-interest"
-  ],
-  "blacklisted_networks": [
-    "twitch",
-    "youtube",
-    "nickelodeon",
-    "hallmark",
-    "reelzchannel",
-    "disney",
-    "cnn",
-    "cbbc",
-    "the movie network",
-    "teletoon",
-    "cartoon network",
-    "espn",
-    "yahoo!",
-    "fox sports"
-  ],
-  "blacklisted_max_runtime": 0,
-  "blacklisted_min_runtime": 15,
-  "blacklisted_min_year": 2000,
-  "blacklisted_max_year": 2019,
-  "blacklisted_title_keywords": [],
-  "blacklisted_tvdb_ids": []
+  "movies": { "interval": 24, "anticipated": 1, "popular": 1, "boxoffice": 1, "trending": 0 },   // ≤ 3 movies a day
+  "shows":  { "interval": 24, "anticipated": 0, "popular": 1, "trending": 0 }                     // ≤ 1 show a day
 }
 ```
 
-`disabled_for` - Specify for which lists the blacklist is disabled for, when running in automatic mode.
+The original defaults (20 anticipated + 5 popular + 3 box office + 2 trending) add up to 30 movies a day.
 
-- This is similar to running `--ignore-blacklist` via the CLI command.
+### Movies: new, English, blockbuster genres, well reviewed
 
-- Example:
-
-  ```json
-  "disabled_for": [
-      "anticipated",
-      "watchlist:user1",
-      "list:http://url-to-list"
-  ],
-  ```
-
-`allowed_countries` - Only add shows from these countries. Listed as two-letter country codes.
-
-- [List of available country codes](assets/list_of_country_codes.md).
-
-- Special keywords:
-
-  - Blank list (i.e. `[]`) - Add shows from any country.
-
-  - `ignore` (i.e. `["ignore"]`) - Add shows from any country, including ones with no country specified.
-
-`allowed_languages` - Only add shows with these languages.
-
-- Languages are in [ISO 639-1](https://en.wikipedia.org/wiki/ISO_639-1) format (e.g. `ja` for Japanese.)
-
-- [List of available language codes](assets/list_of_language_codes.md).
-
-- Special keywords:
-
-  - Blank list (i.e. `[]`) - Add shows with any language.
-
-  - `ignore` (i.e. `["ignore"]`) - Add shows with any language, including ones with no language specified.
-  
-`blacklisted_genres` - Blacklist certain genres.
-
-- [List of available TV show genres](assets/list_of_tv_show_genres.md).
-
-- For an updated list, visit [here](https://trakt.docs.apiary.io/#reference/genres/list/get-genres).
-
-- Special Keywords:
-
-  - Blank list (i.e. `[]`) - Add shows from any genre.
-
-  - `ignore` (i.e. `["ignore"]`) - Add shows from any genre, including ones with no genre specified.
-
-`blacklisted_networks` - Blacklist certain network.
-
-`blacklisted_min_runtime` - Blacklist runtime duration shorter than specified time (in minutes).
-
-`blacklisted_max_runtime` - Blacklist runtime duration longer than specified time (in minutes).
-
-  - Has to be longer than `blacklisted_min_runtime` or else it will be ignored.
-
-`blacklisted_min_year` - Blacklist release dates before specified year. This can be a 4 digit year, `0`, or `-<number of years to go back>` format.
-
-- If `0`, blacklist shows that came out before the current year. 
-
-- If `-10`, blacklist shows that came out 10 years before the current year.
-
-`blacklisted_max_year` - Blacklist release dates after specified year. This can be a 4 digit year, `0`, or `+<number of years to go forward>` format.
-
-- If `0`, blacklist shows that are coming out after the current year. 
-
-- If `+1`, blacklist shows that are coming out after 1 year from current year.
-
-`blacklisted_title_keywords` - Blacklist certain words in titles.
-
-`blacklisted_tvdb_ids` - Blacklist certain shows with their TVDB IDs.
-
-  - Example:
-
-    ```json
-    "blacklisted_tvdb_ids": [
-      79274,
-      85287,
-      71256,
-      194751,
-      76733,
-      336238
-    ],
-    ```
-
-
-## Notifications
-
-
-```json
-"notifications": {
-  "Apprise": {
-    "service": "apprise",
-    "url": "",
-    "title": ""
-  },
-  "verbose": false
-},
-```
-
-Notification alerts for Traktarr tasks.
-
-For auto (i.e. scheduled) runs, notifications are enabled automatically when notification services are listed in this section.
-
-For manual (i.e. CLI) commands, you need to add the  `--notifications` flag.
-
-Supported `services`:
- - `apprise`
- - `pushover`
- - `slack`
-
-_Note: The key name can be anything, but the `service` key must be must be the exact service name (e.g. `pushover`). See below for example._
-
-
-```json
-"notifications": {
-  "anyname": {
-    "service": "pushover",
+```jsonc
+"filters": {
+  "movies": {
+    "allowed_languages": ["en"],
+    "allowed_countries": ["us", "gb", "ca", "au", "nz"],
+    "allowed_genres": ["action", "adventure", "comedy", "fantasy", "horror", "science-fiction", "superhero"],
+    "blacklisted_genres": ["anime", "children", "documentary", "music", "musical", "reality", "short", "sports",
+                           "holiday", "history", "special-interest"],
+    "blacklisted_min_year": 0,          // this year…
+    "blacklisted_max_year": "+1",       // …to next year, so it never needs updating
+    "blacklisted_min_runtime": 80,
+    "rotten_tomatoes": "75"             // popular/box office/trending; skipped for anticipated (no score before release)
   }
-},
-```
-
-
-### General
-
-`verbose` - Toggle detailed notifications.
-
-  - Default is `true`.
-
-  - Set to `false` if you want to reduce the amount of detailed notifications (e.g. just the total vs the names of the movies/shows added).
-
-```json
-"notifications": {
-  "verbose": true
-},
-```
-
-### Apprise
-
-```json
-"notifications": {
-  "Apprise": {
-    "service": "apprise",
-    "url": "",
-    "title": ""
-  },
-  "verbose": false
-},
-```
-
-`url` - Apprise service URL (see [here](https://github.com/caronc/apprise)).
-
- - Required.
-
-`title` - Notification Title.
-
- - Optional.
-
- - Default is `Traktarr`.
-
-
-### Pushover
-
-```json
-"notifications": {
-  "pushover": {
-    "service": "pushover",
-    "app_token": "",
-    "user_token": "",
-    "priority": 0
-  },
-  "verbose": false
-},
-```
-
-`app_token`  - App Token from [Pushover.net](https://pushover.net).
-
- - Required.
-
-`user_token` - User Token from [Pushover.net](https://pushover.net).
-
- - Required.
-
-`priority` - [Priority](https://pushover.net/api#priority) of the notifications.
-
- - Optional.
-
- - Choices are: `-2`, `-1`, `0`, `1`, `2`.
-
- - Values are not quoted.
-
- - Default is `0`.
-
-
-### Slack
-
-```json
-"notifications": {
-  "slack": {
-    "service": "slack",
-    "webhook_url": "",
-    "channel": "",
-    "sender_name": "Traktarr",
-    "sender_icon": ":movie_camera:"
-  },
-  "verbose": false
-},
-```
-
-`webhook_url` - [Webhook URL](https://my.slack.com/services/new/incoming-webhook/).
-
- - Required.
-
-`channel` - Slack channel to send the notifications to.
-
- - Optional.
-
- - Default is blank.
-
-`sender_name` - Sender's name for the notifications.
-
- - Optional.
-
- - Default is `Traktarr`.
-
-`sender_icon` - Icon to use for the notifications.
-
- - Optional.
-
- - Default is `:movie_camera:`
-
-
-
-## Radarr
-
-Radarr configuration.
-
-```json
-"radarr": {
-  "api_key": "",
-  "minimum_availability": "released",
-  "quality": "HD-1080p",
-  "root_folder": "/movies/",
-  "url": "http://localhost:7878"
-},
-```
-`api_key` - Radarr's API Key.
-
-`quality` - Quality Profile that movies are assigned to.
-
-`minimum_availability` - The minimum availability the movies are set to.
-
-  - Choices are `announced`, `in_cinemas` or `released` (Physical/Web).
-
-  - Default is `released` (Physical/Web).
-
-`root_folder` - Root folder for movies.
-
-`url` - Radarr's URL.
-
-  - Note: If you have URL Base enabled in Radarr's settings, you will need to add that into the URL as well.
-
-## Sonarr
-
-Sonarr configuration.
-
-
-```json
-"sonarr": {
-  "api_key": "",
-  "language": "English",
-  "quality": "HD-1080p",
-  "root_folder": "/tv/",
-  "season_folder": true,
-  "tags": [],
-  "url": "http://localhost:8989"
-},
-```
-
-`api_key` - Sonarr's API Key.
-
-`language` - Language Profile that TV shows are assigned to. Only applies to Sonarr v3.
-
-`quality` - Quality Profile that TV shows are assigned to.
-
-`root_folder` - Root folder for TV shows.
-
-`season_folder` - Sort episodes into season folders.
-
-`tags` - Assign tags to shows. Tags need to be created in Sonarr first.
-
-  - Examples:
-
-    ```json
-    "tags": ["anime"]
-    ```
- 
-     ```json
-    "tags": ["anime", "jap"]
-    ```
-    
-    ```json
-    "tags": [
-      "anime", 
-      "jap"
-    ]
-    ```
-    
-`url` - Sonarr's URL.
-
-  - Note: If you have URL Base enabled in Sonarr's settings, you will need to add that into the URL as well.
-
-## Trakt
-
-Trakt Authentication info:
-
-```json
-"trakt": {
-  "client_id": "",
-  "client_secret": ""
 }
 ```
 
-`client_id` - Your Trakt API Key (_Client ID_).
+### Shows: new series only, no procedurals or reality TV
 
-`client_secret` - Your Trakt Secret Key (_Client Secret_).
-
-## OMDb
-
-[OMDb](https://www.omdbapi.com/) Authentication info.
-
-```json
-"omdb": {
-  "api_key":""
+```jsonc
+"filters": {
+  "shows": {
+    "allowed_languages": ["en"],
+    "allowed_countries": ["us", "gb", "ca", "au", "nz"],
+    "allowed_genres": ["action", "adventure", "comedy", "fantasy", "horror", "science-fiction", "superhero"],
+    "blacklisted_genres": ["animation", "anime", "children", "documentary", "game-show", "home-and-garden", "news",
+                           "reality", "soap", "special-interest", "talk-show", "sporting-event"],
+    "blacklisted_networks": ["youtube", "twitch", "nickelodeon", "hallmark", "cartoon network"],
+    "blacklisted_min_year": 0,          // first aired this year or later: new series, not new seasons
+    "blacklisted_max_year": "+1",
+    "blacklisted_min_runtime": 15
+  }
 }
 ```
 
-`api_key` - Your [OMDb](https://www.omdbapi.com/) API Key.
+### How the genre filters combine
 
-- This is only needed if you wish to use a minimum Rotten Tomatoes score to filter out movies.  
+- `allowed_genres`: a title needs **at least one** of these. A sci-fi drama passes; a pure drama such as a medical or crime
+  procedural doesn't. Leave it out or empty to allow any genre.
+- `blacklisted_genres`: a title with **any** of these is skipped, even if it also has an allowed genre.
+- Genre names are Trakt's slugs:
 
-- Use `rotten_tomatoes` in config for automatic scheduling or `--rotten_tomatoes` as an argument for CLI.
+  | | |
+  |---|---|
+  | Movies | action adventure animation anime comedy crime documentary donghua drama family fantasy history holiday horror music musical mystery romance science-fiction short sporting-event superhero suspense thriller war western |
+  | Shows | the movie list plus biography children game-show home-and-garden mini-series news reality soap special-interest talk-show |
 
-# Usage
+  Fetch the current lists with `curl -H "trakt-api-version: 2" -H "trakt-api-key: …" https://api.trakt.tv/genres/movies`
+  (or `/genres/shows`).
 
-## Automatic (Scheduled)
+### Years
 
-### Setup
+`blacklisted_min_year` and `blacklisted_max_year` take a fixed year (`2026`) or one relative to the current year: `0` is this
+year, `"+1"` next year, `"-2"` two years ago. For shows the year is the year the series first aired.
 
-To have Traktarr get Movies and Shows for you automatically, on set interval, do the following:
+## Keeping unwanted titles out
 
-1. `sudo cp /opt/traktarr/systemd/traktarr.service /etc/systemd/system/`
+- traktarr skips anything already in Radarr/Sonarr **and anything on their import exclusion lists**. When you delete
+  something it added, tick **Add to import exclusion list** so it doesn't come back.
+- Tag what traktarr adds: set `radarr.tags` / `sonarr.tags` to a list of tag names (e.g. `["traktarr"]`), then filter by
+  the tag in Radarr/Sonarr to review everything it has added.
+- Try filter changes with `--dry-run` first (see [Commands](#commands)).
+- To block a single title, add its TMDb ID to `filters.movies.blacklisted_tmdb_ids` or its TVDB ID to
+  `filters.shows.blacklisted_tvdb_ids`. Title words go in `blacklisted_title_keywords`.
 
-2. `sudo nano /etc/systemd/system/traktarr.service` and edit user/group to match yours' (run `id` to check).
+## Commands
 
-3. `sudo systemctl daemon-reload`
+Run any of these as a one-off with `docker compose run --rm traktarr <command>`:
 
-4. `sudo systemctl enable traktarr.service`
-
-5. `sudo systemctl start traktarr.service`
-
-### Customize
-
-You can customize how the scheduled Traktarr is ran by editing the `traktarr.service` file and adding any of the following options:
-
-\* Remember, other configuration options need to go into the `config.json` file under the `Automatic` section.
-
-```
-traktarr run --help
-```
-
-```
-Usage: traktarr run [OPTIONS]
-
-  Run in automatic mode.
-
-Options:
-  -d, --add-delay FLOAT           Seconds between each add request to Sonarr /
-                                  Radarr.  [default: 2.5]
-  -s, --sort [votes|rating|release]
-                                  Sort list to process.
-  --no-search                     Disable search when adding to Sonarr /
-                                  Radarr.
-  --run-now                       Do a first run immediately without waiting.
-  --no-notifications              Disable notifications.
-  --ignore-blacklist              Ignores the blacklist when running the
-                                  command.
-  --help                          Show this message and exit.
+```bash
+movies -t popular -l 5 --dry-run           # show what would be added from a list, without adding anything
+movies -t popular -l 5                     # add up to 5 movies (lists: anticipated, trending, popular, boxoffice)
+movies -t anticipated -l 5 -g "science-fiction,horror"    # only these genres, this time
+shows  -t popular -l 1 --dry-run
+movies -t https://trakt.tv/users/NAME/lists/LIST -l 10    # any public Trakt list
+trakt_authentication                       # sign in, for watchlists and private lists
 ```
 
+`--help` after any command lists all its options.
 
-`-d`, `--add-delay` - Add seconds delay between each add request to Sonarr / Radarr. Default is `2.5` seconds.
+## Updating
 
- - Example: `-d 5`
-
-`-s`, `--sort` - Sort list by highest `votes`, highest `rating`, or the latest `release` dates. Default is highest `votes`.
-
- - Example: `-s release`
-
-`--no-search` - Tells Sonarr / Radarr to not automatically search for added shows / movies.
-
-`--run-now` - Traktarr will run first automated search on start, without waiting for next interval.
-
-`--no-notifications` - Disable notifications. Default is `enabled`.
-
-`--ignore-blacklist` - Ignores blacklist filtering. Equivalent of `disabled_for` in config.json.
-
-
-Example of a modified line from the `traktarr.service` file that will always add from the most recent releases matched:
-
-```
-ExecStart=/usr/bin/python3 /opt/traktarr/traktarr.py run -s release
+```bash
+cd /opt/appdata/traktarr/src && git pull
+cd .. && docker compose up -d --build
 ```
 
-## Manual (CLI)
-
-### General
-
-```
-traktarr
-```
-
-```
-Usage: traktarr [OPTIONS] COMMAND [ARGS]...
-
-  Add new shows & movies to Sonarr/Radarr from Trakt.
-
-Options:
-  --version         Show the version and exit.
-  --config PATH     Configuration file  [default: /Users/macuser/Documents/Git
-                    Hub/l3uddz/traktarr/config.json]
-  --cachefile PATH  Cache file  [default:
-                    /Users/macuser/Documents/GitHub/l3uddz/traktarr/cache.db]
-  --logfile PATH    Log file  [default: /Users/macuser/Documents/GitHub/l3uddz
-                    /traktarr/activity.log]
-  --help            Show this message and exit.
-
-Commands:
-  movie                 Add a single movie to Radarr.
-  movies                Add multiple movies to Radarr.
-  run                   Run Traktarr in automatic mode.
-  show                  Add a single show to Sonarr.
-  shows                 Add multiple shows to Sonarr.
-  trakt_authentication  Authenticate Traktarr.
-  ```
-
-### Movie (Single Movie)
-
-```
-traktarr movie --help
-```
-
-```
-Usage: traktarr movie [OPTIONS]
-
-  Add a single movie to Radarr.
-
-Options:
-  -id, --movie-id TEXT  Trakt Movie ID.  [required]
-  -f, --folder TEXT     Add movie with this root folder to Radarr.
-  -ma, --minimum-availability [announced|in_cinemas|released]
-                        Add movies with this minimum availability to Radarr.
-  --no-search           Disable search when adding movie to Radarr.
-  --help                Show this message and exit.
-```
-
-`-id`, `--movie-id` -  ID/slug of the movie to add to Radarr. Supports both Trakt and IMDB IDs. This arguent is required.
-
-`-f`, `--folder` -  Add movie to a specific root folder in Radarr.
-
- - Example: `-f /mnt/unionfs/Media/Movies/Movies-Kids/`
-
-`minimum_availability` - The minimum availability the movies are set to.
-
-   - Choices are `announced`, `in_cinemas` or `released` (Physical/Web).
-
-   - Default is `released` (Physical/Web).
-
-`--no-search` - Tells Radarr to not automatically search for added movies.
-
-
-### Movies (Multiple Movies)
-
-```
-traktarr movies --help
-```
-
-
-```
-Usage: traktarr movies [OPTIONS]
-
-  Add multiple movies to Radarr.
-
-Options:
-  -t, --list-type TEXT            Trakt list to process. For example, 'anticipated', 'trending',
-                                  'popular', 'person', 'watched', 'played', 'recommended',
-                                  'watchlist', or any URL to a list.  [required]
-  -l, --add-limit INTEGER         Limit number of movies added to Radarr.
-  -d, --add-delay FLOAT           Seconds between each add request to Radarr.  [default: 2.5]
-  -s, --sort [rating|release|votes]
-                                  Sort list to process.  [default: votes]
-  -rt, --rotten_tomatoes INTEGER  Set a minimum Rotten Tomatoes score.
-  -y, --year, --years TEXT        Can be a specific year or a range of years to search. For
-                                  example, '2000' or '2000-2010'.
-  -g, --genres TEXT               Only add movies from this genre to Radarr. Multiple genres are
-                                  specified as a comma-separated list. Use 'ignore' to add movies
-                                  from any genre, including ones with no genre specified.
-  -f, --folder TEXT               Add movies with this root folder to Radarr.
-  -ma, --minimum-availability [announced|in_cinemas|released]
-                                  Add movies with this minimum availability to Radarr. Default is
-                                  'released'.
-  -p, --person TEXT               Only add movies from this person (e.g. actor) to Radarr. Only
-                                  one person can be specified. Requires the 'person' list type.
-  --include-non-acting-roles      Include non-acting roles such as 'Director', 'As Himself',
-                                  'Narrator', etc. Requires the 'person' list type with the
-                                  'person' argument.
-  --no-search                     Disable search when adding movies to Radarr.
-  --notifications                 Send notifications.
-  --authenticate-user TEXT        Specify which user to authenticate with to retrieve Trakt lists.
-                                  Defaults to first user in the config.
-  --ignore-blacklist              Ignores the blacklist when running the command.
-  --remove-rejected-from-recommended
-                                  Removes rejected/existing movies from recommended.
-  --help                          Show this message and exit.
-```
-
-`-t`, `--list-type` - Trakt list to process.
-
-Choices are: `anticipated`, `trending`, `popular`, `boxoffice`, `watched`, `played`, `URL` (Trakt list), or `person` (used with `-p`/`--person` argument).
-
-- Top Watched List options:
-
-  - `watched` / `watched_weekly` - Most watched in the week.
-
-  - `watched_monthly` - Most watched in the month.
-
-  - `watched_yearly` - Most watched in the year.
-
-  - `watched_all` - Most watched of all time.
-
-- Top Played List options:
-
-  - `played` / `played_weekly` - Most played in the week.
-
-  - `played_monthly` - Most played in the month.
-
-  - `played_yearly` - Most played in the year.
-
-  - `played_all` Most played of all time.
-
-`-l`, `--add-limit` - Limit number of movies added to Radarr.
-
- - Note: This is a limit on how many items are added into Radarr. Not a limit on how many items to retrieve from Trakt.
-
-`-d`, `--add-delay` - Add seconds delay between each add request to Radarr. Default is 2.5 seconds.
-
- - Example: `-d 5`
-
-`-s`, `--sort` - Sort list by highest `votes`, highest `rating`, or the latest `release` dates. Default is highest `votes`.
-
- - Example: `-s release`
-
-`-rt`, `--rotten_tomatoes` -  Only add movies equal to or above this Rotten Tomatoes score.
-
- - Example: `-rt 75`
-
-`-y`, `--year`, `--years` -  Only add movies from from a specific year or range of years.
-
- - Examples: `-y 2010`, `--years 2010-2020`
- 
-`-g`, `--genres` - Only add movies from these genre(s) to Radarr.
-
-- Multiple genres are passed as comma-separated lists. The effect of this is equivalent of boolean OR. (ie. include items from any of these genres).
-
-- Can find a list [here](assets/list_of_movie_genres.md).
-
-`-f`, `--folder` -  Add movies to a specific root folder in Radarr.
-
- - Example: `-f /mnt/unionfs/Media/Movies/Movies-Kids/`
-
-`minimum_availability` - The minimum availability the movies are set to.
-
-  - Choices are `announced`, `in_cinemas` or `released` (Physical/Web).
-
-  - Default is `released` (Physical/Web).
-
-`-p`, `--person` - Only add movies with a specific person to Radarr.
-
-  - Requires the list type `person`.
-
-`--include-non-acting-roles` - Include non-acting roles of the specified person.
-
-  - Requires the list type `person` used with the `-p`/`--person` option.
-
-`--no-search` - Tells Radarr to not automatically search for added movies.
-
-`--notifications` - To enable notifications. Default is `disabled`.
-
-`--authenticate-user` - Specify which authenticated user to retrieve Trakt lists as. Default is the first user in the config.
-
-`--ignore-blacklist` - Ignores blacklist filtering.
-
- - Equivalent of `disabled_for` in `config.json`.
-
-`--remove-rejected-from-recommended` - Removes rejected/existing shows from the recommended list, so that it will be removed from further recommendations.
-
-
-### Show (Single Show)
-
-```
-traktarr show --help
-```
-
-
-```
-Usage: traktarr show [OPTIONS]
-
-  Add a single show to Sonarr.
-
-Options:
-  -id, --show-id TEXT  Trakt Show ID.  [required]
-  -f, --folder TEXT    Add show with this root folder to Sonarr.
-  --no-search          Disable search when adding show to Sonarr.
-  --help               Show this message and exit.
-```
-
-`-id`, `--show-id` -  ID/slug of the show to add to Sonarr. Supports both Trakt and IMDB IDs. This argument is required.
-
-
-### Shows (Multiple Shows)
-
-```
-traktarr shows --help
-```
-
-
-```
-Usage: traktarr shows [OPTIONS]
-
-  Add multiple shows to Sonarr.
-
-Options:
-  -t, --list-type TEXT            Trakt list to process. For example, 'anticipated', 'trending',
-                                  'popular', 'person', 'watched', 'played', 'recommended',
-                                  'watchlist', or any URL to a list.  [required]
-  -l, --add-limit INTEGER         Limit number of shows added to Sonarr.
-  -d, --add-delay FLOAT           Seconds between each add request to Sonarr.  [default: 2.5]
-  -s, --sort [rating|release|votes]
-                                  Sort list to process.  [default: votes]
-  -y, --year, --years TEXT        Can be a specific year or a range of years to search. For
-                                  example, '2000' or '2000-2010'.
-  -g, --genres TEXT               Only add shows from this genre to Sonarr. Multiple genres are
-                                  specified as a comma-separated list. Use 'ignore' to add shows
-                                  from any genre, including ones with no genre specified.
-  -f, --folder TEXT               Add shows with this root folder to Sonarr.
-  -p, --person TEXT               Only add shows from this person (e.g. actor) to Sonarr. Only one
-                                  person can be specified. Requires the 'person' list type.
-  --include-non-acting-roles      Include non-acting roles such as 'Director', 'As Himself',
-                                  'Narrator', etc. Requires the 'person' list type with the
-                                  'person' argument.
-  --no-search                     Disable search when adding shows to Sonarr.
-  --notifications                 Send notifications.
-  --authenticate-user TEXT        Specify which user to authenticate with to retrieve Trakt lists.
-                                  Defaults to first user in the config
-  --ignore-blacklist              Ignores the blacklist when running the command.
-  --remove-rejected-from-recommended
-                                  Removes rejected/existing shows from recommended.
-  --help                          Show this message and exit.
-```
-
-
-`-t`, `--list-type` - Trakt list to process.
-
-Choices are: `anticipated`, `trending`, `popular`, `watched`, `played`, `URL` (Trakt list), or `person` (used with `-p`/`--person` argument).
-
-- Top Watched List options:
-
-  - `watched` / `watched_weekly` - Most watched in the week.
-
-  - `watched_monthly` - Most watched in the month.
-
-  - `watched_yearly` - Most watched in the year.
-
-  - `watched_all` - Most watched of all time.
-
-- Top Played List options:
-
-  - `played` / `played_weekly` - Most played in the week.
-
-  - `played_monthly` - Most played in the month.
-
-  - `played_yearly` - Most played in the year.
-
-  - `played_all` Most played of all time.
-
-`-l`, `--add-limit` - Limit number of shows added to Sonarr.
-
- - Note: This is a limit on how many items are added into Sonarr. Not a limit on how many items to retrieve from Trakt.
-
-`-d`, `--add-delay` - Add seconds delay between each add request to Sonarr. Default is 2.5 seconds.
-
- - Example: `-d 5`
-
-`-s`, `--sort` - Sort list by highest `votes`, highest `rating`, or the latest `release` dates. Default is highest `votes`.
-
- - Example: `-s release`
-
-`-y`, `--year`, `--years` -  Only add shows from from a specific year or range of years.
-
- - Examples: `-y 2010`, `--years 2010-2020`
- 
-`-g`, `--genres` - Only add shows from this genre(s) to Sonarr.
-
-- Multiple genres are passed as comma-separated lists. The effect of this is equivalent of boolean OR. (ie. include items from any of these genres).
-
-- Can find a list [here](assets/list_of_tv_show_genres.md).
-
-`-f`, `--folder` -  Add shows to a specific root folder in Sonarr.
-
- - Example: `-f /mnt/unionfs/Media/Shows/Shows-Kids/`
-
-`-p`, `--person` - Only add shows with a specific person to Sonarr.
-
-   - Requires the list type `person`.
-
-`--include-non-acting-roles` - Include non-acting roles of the specified person.
-
-  - Requires the list type `person` used with the `-p`/`--person` option.
-
-`--no-search` - Tells Sonarr to not automatically search for added shows.
-
-`--notifications` - To enable notifications. Default is `disabled`.
-
-`--authenticate-user` - Specify which authenticated user to retrieve Trakt lists as. Default is the first user in the config.
-
-`--ignore-blacklist` - Ignores blacklist filtering. Equivalent of `disabled_for` in `config.json`.
-
-`--remove-rejected-from-recommended` - Removes rejected/existing shows from the recommended list, so that it will be removed from further recommendations.
-
-
-## Examples (CLI)
-
-### Movies
-
-- Add the movie "Black Panther (2018)":
-
-  ```
-  traktarr movie -id black-panther-2018
-  ```
-
-- Add movies, from the popular list, labeled with the thriller genre, limited to 5 items, and sorted by latest release date.
-
-  ```
-  traktarr movies -t popular -g thriller -l 5 -s release
-  ```
-
-- Add movies, from the Box Office list, labeled with the comedy genre, limited to 10 items, and send notifications:
-
-  ```
-  traktarr movies -t boxoffice -g comedy -l 10 --notifications
-  ```
-
-- Add movies, from a list of most watched played this week, and limited to 5 items.
-
-  ```
-  traktarr movies -t watched -l 5
-  ```
-
-- Add movies, from a list of most played movies this month, and limited to 5 items.
-
-  ```
-  traktarr movies -t played_monthly -l 5
-  ```
-
-- Add (all) movies from the public list `https://trakt.tv/users/rkerwin/lists/top-100-movies`:
-
-  ```
-  traktarr movies -t https://trakt.tv/users/rkerwin/lists/top-100-movies
-  ```
-
-- Add (all) movies from the private list `https://trakt.tv/users/user1/lists/private-movies-list` of `user1`:
-
-  ```
-  traktarr movies -t https://trakt.tv/users/user1/lists/private-movies-list --authenticate-user=user1
-  ```
-
-- Add movies, from the trending list, with a minimum Rotten Tomatoes score of 80%.
-
-  ```
-  traktarr movies -t trending -rt 80
-  ```
-
-- Add movies, from the trending list, from the year 2020.
-
-  ```
-  traktarr movies -t trending -y 2020
-  ```
-  
-- Add movies, with actor 'Keanu Reeves', limited to 10 items.
-
-  ```
-  traktarr movies -t person -p 'keanu reeves' -l 10
-  ```
-
-- Add movies, with actor 'Tom Cruise', including movies where he has non-acting roles, limited to 10 items.
-
-  ```
-  traktarr movies -t person -p 'tom cruise' --include-non-acting-roles -l 10
-  ```
-
-### Shows
-
-- Add the show "The 100":
-
-  ```
-  traktarr show -id the-100
-  ```
-
-- Add shows, from the popular list, limited to 5 items, and sorted by highest ratings.
-
-  ```
-  traktarr shows -t popular -l 5 -s rating
-  ```
-
-- Add shows, from the popular list, limited to 2 items, and add them but don't search for episodes in Sonarr:
-
-  ```
-  traktarr shows -t popular -l 2 --no-search
-  ```
-
-- Add shows, from a list of most watched shows this year, and limited to 5 items.
-
-  ```
-  traktarr shows -t watched_yearly -l 5
-  ```
-
-- Add shows, from a list of most played shows this week, and limited to 5 items.
-
-  ```
-  traktarr shows -t played -l 5
-  ```
-
-- Add shows, from a list of most played shows of all time, and limited to 5 items.
-
-  ```
-  traktarr shows -t played_all -l 5
-  ```
-
-- Add (all) shows from the watchlist of `user1`:
-
-  ```
-  traktarr shows -t watchlist --authenticate-user user1
-  ```
+## Changes in this copy
+
+On top of notlimahrelyt's Python 3.10+ port:
+
+- **Python 3.12 image** (`Dockerfile.mediabox`); `docker/Dockerfile` is still pinned to Python 3.7.
+- **Anticipated list works with a Rotten Tomatoes minimum.** Unreleased movies have no score, so before this nothing from
+  that list was ever added; the check is now skipped for it.
+- **No more stalled runs.** Every title used to be checked by loading its themoviedb.org / thetvdb.com web page while
+  pretending to be a browser, with no timeout; those requests got blocked and runs hung for hours. Now only the ID is
+  checked, and Radarr/Sonarr look the title up themselves.
+- **`allowed_genres`** for movies and shows.
+- **Relative years keep working** across automatic runs, instead of freezing at the year the container started.
+- **Honest user agent:** Trakt requests identify as `traktarr` rather than a browser.
+- Regex escape warnings on Python 3.12 fixed.
+
+## Credits
+
+[l3uddz](https://github.com/l3uddz) and the original contributors wrote traktarr; [notlimahrelyt](https://github.com/notlimahrelyt)
+ported it to current Python. GPL-3.0, see [LICENSE.md](LICENSE.md).
