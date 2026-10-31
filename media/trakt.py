@@ -26,8 +26,7 @@ class Trakt:
 
     def _make_request(self, url, payload=None, authenticate_user=None, request_type='get'):
         headers, authenticate_user = self._headers(authenticate_user)
-        headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' \
-                                '(KHTML, like Gecko) Chrome/71.0.3578.80 Safari/537.36'
+        headers['User-Agent'] = 'traktarr'      # identify as what we are, not as a browser
 
         if payload is None:
             payload = {}
