@@ -69,9 +69,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "trakt-api-version: 2" -H "trakt-api
 
 ## Install with Docker Compose
 
+Everything runs from the cloned folder. Nothing else to create: `config/` appears on the first start.
+
 ```bash
-sudo mkdir -p /opt/traktarr && sudo chown "$USER" /opt/traktarr
-git clone https://github.com/Jarsky/traktarr.git /opt/traktarr
+sudo git clone https://github.com/Jarsky/traktarr.git /opt/traktarr && sudo chown -R "$USER": /opt/traktarr
 cd /opt/traktarr
 cp docker-compose.example.yml docker-compose.yml
 cp .env.example .env                    # set your time zone
@@ -81,12 +82,18 @@ docker compose up -d --build
 On first start, traktarr writes a default `config/config.json` and stops. [Fill it in](#configure), then
 `docker compose up -d` again and watch it with `docker logs -f traktarr`.
 
+Any other folder works too: clone it wherever you like and run the same commands there.
+
 ```
 /opt/traktarr/
-├── docker-compose.yml   your copy of docker-compose.example.yml
-├── .env                 your copy of .env.example: time zone, colour, config folder
-├── config/              config.json, cache.db, traktarr.log
-└── …                    the source
+├── Dockerfile
+├── docker-compose.example.yml
+├── docker-compose.yml   your copy: the one docker compose uses
+├── .env.example
+├── .env                 your copy: time zone, colour, config folder
+├── config/              created on first start: config.json, cache.db, traktarr.log
+├── traktarr.py, helpers/, media/, misc/, notifications/   the code
+└── assets/, sample/, tests/, LICENSE.md, …
 ```
 
 Your `docker-compose.yml`, `.env` and `config/` aren't tracked by git, so `git pull` never touches them.
@@ -103,7 +110,7 @@ Your `docker-compose.yml`, `.env` and `config/` aren't tracked by git, so `git p
 traktarr talks to Radarr and Sonarr over their APIs. Either:
 
 - **Use their address** in `radarr.url` / `sonarr.url`, e.g. `http://192.168.1.10:7878/`. Works wherever they run, with
-  the compose file above as it is.
+  the example compose file as it is.
 - **Or join their Docker network** and use their container names (`http://radarr:7878/`). Find the network with
   `docker inspect radarr --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`, set
   `DOCKER_NETWORK` in `.env`, and uncomment the two `networks` parts of your `docker-compose.yml`.
@@ -306,7 +313,8 @@ Dates take `"YYYY-MM-DD"`, `"today"`, or a distance from today with `d`, `w`, `m
 
 ## Commands
 
-Run any of these as a one-off with `docker compose run --rm traktarr <command>`:
+Run any of these once, from the traktarr folder, with `docker compose run --rm traktarr <command>`. They use the same
+`config/` as the running container:
 
 ```bash
 movies -t popular -l 5 --dry-run           # show what would be added from a list, without adding anything
@@ -324,8 +332,8 @@ trakt_authentication                       # sign in, for watchlists and private
 The console log is short and colour-coded: titles being added in green, skipped ones dimmed, list headers in pink,
 problems in red, with a neon banner at start-up. The log file (`config/traktarr.log`) keeps the full plain format.
 
-`docker logs` isn't a terminal, so colour is switched on with `TRAKTARR_COLOR=1` in the compose file; `0` turns it off.
-Set `TZ` there too, so log times and "this year" follow your time zone.
+`docker logs` isn't a terminal, so colour is switched on with `TRAKTARR_COLOR=1` in `.env`; `0` turns it off. Set `TZ`
+there too, so log times and "this year" follow your time zone. Run `docker compose up -d` after changing `.env`.
 
 ## Updating
 
