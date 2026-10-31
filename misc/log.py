@@ -18,7 +18,7 @@ class ConsoleFormatter(logging.Formatter):
         (re.compile(r'^ADDED\b'), rgb(34, 245, 200, True)),
         (re.compile(r'^ADDING:'), rgb(74, 222, 128)),
         (re.compile(r'^(ADDING \d+|SKIPPED Trakt|Automatic .* task|Added \d+|Anticipation:)'), rgb(255, 43, 214, True)),
-        (re.compile(r'^SKIPPING'), rgb(150, 150, 160)),
+        (re.compile(r'^SKIPP(ING|ED)'), rgb(150, 150, 160)),
         (re.compile(r'(FAILED|Abort|[Ff]ailure|[Ee]xception)'), rgb(248, 113, 113, True)),
         (re.compile(r'^(Validated|\.\.\.Validated|Retrieved|Removed|Sorted|Processing)'), rgb(155, 92, 255)),
     ]
